@@ -2,9 +2,9 @@ import sys
 import os
 
 # Construct the full path to the directory containing the package
-project_path = '/Users/hofmannc/git/apolune'
+project_path = '/workspace/apolune'
 
-# Add the directory to sys.path
+# Add the 'imatpy' directory to sys.path
 sys.path.append(project_path)
 
 import numpy as np
@@ -18,13 +18,13 @@ import propagation.propagator as propagation
 import multiple_shooting.problem as ms_problem
 
 # import user input data
-# import bcrfbp_input_example_1_energy_opt as energy_opt
-import bcrfbp_input_example_2_fuel_opt as fuel_opt
+import bcrfbp_input_example_1_energy_opt as energy_opt
+# import bcrfbp_input_example_2_fuel_opt as fuel_opt
 
 
 # get user input data
-auxdata = fuel_opt.settings()
-# auxdata = energy_opt.settings()
+# auxdata = fuel_opt.settings()
+auxdata = energy_opt.settings()
 
 N = auxdata['problem']['N']
 TU = auxdata['scaling']['TU']
@@ -59,7 +59,7 @@ nlp = cyipopt.Problem(
 
 # set solver settings
 nlp.add_option('linear_solver', 'ma57')
-nlp.add_option('hsllib', 'libcoinhsl.dylib')
+nlp.add_option('hsllib', 'libcoinhsl.so')
 nlp.add_option('print_level', 5)
 # nlp.add_option('derivative_test', 'first-order')
 nlp.add_option('max_iter', 5000)

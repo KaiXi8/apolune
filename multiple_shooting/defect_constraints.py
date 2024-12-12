@@ -1,52 +1,65 @@
 import numpy as np
 import cppad_py
 from scipy.integrate import odeint
+import numba
 
-
-def dynamics_free_tf(tau, states, controls, p, auxdata):
-    dynamics_fun = auxdata['problem']['dynamics']
+def dynamics_free_tf(tau, states, controls, p, aux):
+    dynamics_fun = aux['problem']['dynamics']
     
-    t0 = auxdata['param']['t0']   
-    tf_ind = auxdata['indices']['tf_ind']
+    t0 = aux['param']['t0']   
+    tf_ind = aux['indices']['tf_ind']
     tf = p[tf_ind]
     
     t = tau * (tf - t0) + t0
     dt = tf - t0
-    
-    return dt * dynamics_fun(t, states, controls, p, auxdata)
-    
+    use_numba = dynamics_fun.__name__.endswith("_numba")
+    if use_numba:
+        params = [aux['param'][name] for name in aux['param']['constant_names']]
+        step = dynamics_fun(t, states, controls, p, *params)
+    else:
+        step = dynamics_fun(t, states, controls, p, aux)
+    return dt * step
 
-def dynamics_stm(t, state_stm, controls, p, auxdata):
+
+
+def dynamics_stm(t, state_stm, controls, p, aux):
     
-    dynamics_fun = auxdata['problem']['dynamics']
-    jacobian_x_fun = auxdata['problem']['jacobian_x']
+    dynamics_fun = aux['problem']['dynamics']
+    jacobian_x_fun = aux['problem']['jacobian_x']
         
-    n_x = auxdata['problem']['n_x']
+    n_x = aux['problem']['n_x']
     x_ind = slice(0, n_x)
-    stm_x_ind = auxdata['indices']['stm_x_ind']
+    stm_x_ind = aux['indices']['stm_x_ind']
     
     x = state_stm[x_ind];
     stm = state_stm[stm_x_ind].reshape((n_x, n_x))
     
-    x_dot = dynamics_fun(t, x, controls, p, auxdata)
-    jac_x = jacobian_x_fun(t, x, controls, p, auxdata)
+    use_numba = dynamics_fun.__name__.endswith("_numba")
+    if use_numba:
+        params = [aux['param'][name] for name in aux['param']['constant_names']]
+        x_dot = dynamics_fun(t, x, controls, p, *params)
+        jac_x = jacobian_x_fun(t, x, controls, p, *params)
+    else:
+        x_dot = dynamics_fun(t, x, controls, p, aux)
+        jac_x = jacobian_x_fun(t, x, controls, p, aux)
     stm_dot_x = jac_x.dot(stm) 
 
     return np.concatenate((x_dot, stm_dot_x.flatten())) 
 
 
-def dynamics_stm_free_tf(tau, state_stm, controls, p, auxdata):
-    
-    dynamics_fun = auxdata['problem']['dynamics']
-    jacobian_x_fun = auxdata['problem']['jacobian_x']
+
+def dynamics_stm_free_tf(tau, state_stm, controls, p, aux):
+
+    dynamics_fun = aux['problem']['dynamics']
+    jacobian_x_fun = aux['problem']['jacobian_x']
         
-    n_x = auxdata['problem']['n_x']
+    n_x = aux['problem']['n_x']
     x_ind = slice(0, n_x)
-    stm_x_ind = auxdata['indices']['stm_x_ind']
-    stm_t_ind = auxdata['indices']['stm_t_ind']
+    stm_x_ind = aux['indices']['stm_x_ind']
+    stm_t_ind = aux['indices']['stm_t_ind']
     
-    t0 = auxdata['param']['t0']   
-    tf_ind = auxdata['indices']['tf_ind']
+    t0 = aux['param']['t0']   
+    tf_ind = aux['indices']['tf_ind']
     tf = p[tf_ind]
     
     x = state_stm[x_ind];
@@ -55,15 +68,23 @@ def dynamics_stm_free_tf(tau, state_stm, controls, p, auxdata):
     
     t = tau * (tf - t0) + t0
     dt = tf - t0
-    
-    f = dynamics_fun(t, x, controls, p, auxdata)
-    
+    use_numba = dynamics_fun.__name__.endswith("_numba")
+    if use_numba:
+        params = [aux['param'][name] for name in aux['param']['constant_names']]
+        f = dynamics_fun(t, x, controls, p, *params)
+        
+        x_dot = dt * f
+        jac_x = jacobian_x_fun(t, x, controls, p, *params)
+    else:
+        f = dynamics_fun(t, x, controls, p, aux)
+        
+        jac_x = jacobian_x_fun(t, x, controls, p, aux)
     x_dot = dt * f
-    jac_x = jacobian_x_fun(t, x, controls, p, auxdata)
     stm_dot_x = dt * jac_x.dot(stm) 
     stm_dot_t = f + dt * jac_x.dot(stm_t) 
 
     return np.concatenate((x_dot, stm_dot_x.flatten(), stm_dot_t.flatten())) 
+
 
 
 def integrate_piecewise(dynamics_fun, tvec, x, u, p, aux):
@@ -76,15 +97,23 @@ def integrate_piecewise(dynamics_fun, tvec, x, u, p, aux):
     ode_atol = aux['param']['ode_atol_piecewise']
         
     state_int_piecewise = np.zeros((Ns, n_x))
+
+    use_numba = dynamics_fun.__name__.endswith("_numba")
+    if use_numba:
+        params = [aux['param'][name] for name in aux['param']['constant_names']]
     
     for i in range(0, Ns):
         tk = tvec[i]
         tk1 = tvec[i+1]
         tspan = np.array([tk, tk1])
-        tmp = odeint(dynamics_fun, x[i], tspan, args=(u, p, aux,), tfirst=True, rtol=ode_rtol, atol=ode_atol)
+        if use_numba:
+            tmp = odeint(dynamics_fun, x[i], tspan, args=(u, p, *params,), tfirst=True, rtol=ode_rtol, atol=ode_atol)
+        else:
+            tmp = odeint(dynamics_fun, x[i], tspan, args=(u, p, aux,), tfirst=True, rtol=ode_rtol, atol=ode_atol)
         state_int_piecewise[i] = tmp[-1]
     
     return state_int_piecewise
+
 
 
 def integrate_piecewise_stm(dynamics_fun, discretizationData, tvec, x, u, p, aux):
@@ -103,6 +132,10 @@ def integrate_piecewise_stm(dynamics_fun, discretizationData, tvec, x, u, p, aux
     discretizationData['x'][0] = x[0]
     
     state_prop_piecewise = np.zeros((Ns, n_x), dtype=cppad_py.a_double)
+
+    use_numba = dynamics_fun.__name__.endswith("_numba")
+    if use_numba:
+        params = [aux['param'][name] for name in aux['param']['constant_names']]
     
     for i in range(0, Ns):
         tk = tvec[i]
@@ -110,9 +143,10 @@ def integrate_piecewise_stm(dynamics_fun, discretizationData, tvec, x, u, p, aux
         tspan = np.array([tk, tk1])
         
         V0[x_ind] = x[i]
-
-        V = odeint(dynamics_fun, V0, tspan, args=(u, p, aux,), tfirst=True, rtol=ode_rtol, atol=ode_atol)[-1]
-            
+        if use_numba:
+            V = odeint(dynamics_fun, V0, tspan, args=(u, p, *params,), tfirst=True, rtol=ode_rtol, atol=ode_atol)[-1]
+        else:
+            V = odeint(dynamics_fun, V0, tspan, args=(u, p, aux,), tfirst=True, rtol=ode_rtol, atol=ode_atol)[-1]
         discretizationData['x'][i+1] = V[x_ind]
         discretizationData['stm_x'][i] = V[stm_x_ind]
         discretizationData['stm_t'][i] = V[stm_t_ind]  
@@ -121,20 +155,23 @@ def integrate_piecewise_stm(dynamics_fun, discretizationData, tvec, x, u, p, aux
 
 
 
-def compute_defects(tvec, x, u, p, auxdata):
+def compute_defects(tvec, x, u, p, aux):
 
-    n_x = auxdata['problem']['n_x']
+    n_x = aux['problem']['n_x']
     
-    if auxdata['problem']['free_tf'] == 1:
+    if aux['problem']['free_tf'] == 1:
         dynamics_fun = dynamics_free_tf
     else:
-        dynamics_fun = auxdata['problem']['dynamics']
-        
-    state_int_piecewise = integrate_piecewise(dynamics_fun, tvec, x, u, p, auxdata)
-    
-    n_man = auxdata['param']['n_man']
-    man_index_list = auxdata['param']['man_index']
+        dynamics_fun = aux['problem']['dynamics']
 
+    use_numba = dynamics_fun.__name__.endswith("_numba")
+    state_int_piecewise = integrate_piecewise(dynamics_fun, tvec, x, u, p, aux)
+    
+    n_man = aux['param']['n_man']
+    man_index_list = aux['param']['man_index']
+
+
+    
     for i in range(0, n_man):
         man_index = man_index_list[i]
         if man_index > 0:
@@ -147,15 +184,15 @@ def compute_defects(tvec, x, u, p, auxdata):
 
 
 
-def compute_jacobian_defects_data(jac_dict_defects, tvec, x, u, p, auxdata):
+def compute_jacobian_defects_data(jac_dict_defects, tvec, x, u, p, aux):
            
-    if auxdata['problem']['free_tf'] == 1:
+    if aux['problem']['free_tf'] == 1:
         dynamics_fun = dynamics_stm_free_tf
     else:
         dynamics_fun = dynamics_stm        
            
            
-    discretizationData = integrate_piecewise_stm(dynamics_fun, auxdata['discretization'], tvec, x, u, p, auxdata)
+    discretizationData = integrate_piecewise_stm(dynamics_fun, aux['discretization'], tvec, x, u, p, aux)
     
     jac_data = update_jacobian_defects_data(jac_dict_defects, jac_dict_defects['data'], discretizationData['stm_x'], discretizationData['stm_t'])
     
@@ -163,7 +200,7 @@ def compute_jacobian_defects_data(jac_dict_defects, tvec, x, u, p, auxdata):
 
 
 
-def compute_jacobian_sparsity_patt_defects(N, n_x, n_u, auxdata):
+def compute_jacobian_sparsity_patt_defects(N, n_x, n_u, aux):
     """
     Determines the sparsity pattern for the Jacobian of the defect constraints,
     identifying nonzero row and column indices, and providing data indices
@@ -183,15 +220,15 @@ def compute_jacobian_sparsity_patt_defects(N, n_x, n_u, auxdata):
     - psi_uk1_indices: Pre-allocated numpy array of indices for psi_uk1 updates
     """
     
-    n_man_defects = auxdata['param']['n_man_defects']
-    man_index_defects = auxdata['param']['man_index_defects']
-    man_index = auxdata['param']['man_index']
-    x_len = auxdata['lengths']['x_len']
+    n_man_defects = aux['param']['n_man_defects']
+    man_index_defects = aux['param']['man_index_defects']
+    man_index = aux['param']['man_index']
+    x_len = aux['lengths']['x_len']
 
-    stm_x_len = auxdata['lengths']['stm_x_len']
-    stm_t_len = auxdata['lengths']['stm_t_len']
+    stm_x_len = aux['lengths']['stm_x_len']
+    stm_t_len = aux['lengths']['stm_t_len']
     
-    tf_ind_sol = auxdata['indices']['tf_ind_sol']
+    tf_ind_sol = aux['indices']['tf_ind_sol']
     
     # Calculate the number of nonzero entries per interval and overall
     entries_per_interval_state = stm_x_len + n_x + stm_t_len

@@ -2,6 +2,7 @@ import numpy as np
 from scipy.integrate import odeint
 from scipy.integrate import solve_ivp
 from propagation.ode_event import plane_crossing_event
+import numba
 
 def propagate_high_thrust(x0_cart, controls, p_vec, time, auxdata):
     N = auxdata['problem']['N']
@@ -12,12 +13,18 @@ def propagate_high_thrust(x0_cart, controls, p_vec, time, auxdata):
     
     ode_rtol = auxdata['param']['ode_rtol_piecewise']
     ode_atol = auxdata['param']['ode_atol_piecewise']
-    
+
+    use_numba = dynamics_fun.__name__.endswith("_numba")
+    if use_numba:
+        params = [auxdata['param'][name] for name in auxdata['param']['constant_names']]
     state_prop = np.zeros((N, n_x))
     state_prop[0] = x0_cart
     for i in range(0, Ns):
         tspan = np.array([time[i], time[i+1]])
-        tmp = odeint(dynamics_fun, state_prop[i], tspan, args=(controls, p_vec, auxdata,), tfirst=True, rtol=ode_rtol, atol=ode_atol)
+        if use_numba:
+            tmp = odeint(dynamics_fun, state_prop[i], tspan, args=(controls, p_vec, *params), tfirst=True, rtol=ode_rtol, atol=ode_atol)
+        else:
+            tmp = odeint(dynamics_fun, state_prop[i], tspan, args=(controls, p_vec, auxdata), tfirst=True, rtol=ode_rtol, atol=ode_atol)
         state_prop[i+1] = tmp[-1]
         
         if i+1 in man_indices:
@@ -31,27 +38,63 @@ def propagate(ode_fun, state0, control, p, tvec, auxdata):
 
     ode_rtol = auxdata['param']['ode_rtol']
     ode_atol = auxdata['param']['ode_atol']
+    use_numba = ode_fun.__name__.endswith("_numba")
+    if use_numba:
+        params = [auxdata['param'][name] for name in auxdata['param']['constant_names']]
     
     if len(tvec) > 2:
-        sol = odeint(ode_fun, state0, tvec, args=(control, p, auxdata,), tfirst=True, rtol=ode_rtol, atol=ode_atol)
+        if not use_numba:
+            sol = odeint(ode_fun, state0, tvec, args=(control, p, auxdata,), tfirst=True, rtol=ode_rtol, atol=ode_atol)
+        else:
+            sol = odeint(ode_fun, state0, tvec, args=(control, p, *params,), tfirst=True, rtol=ode_rtol, atol=ode_atol)
     else:
         tspan = np.array([tvec[0], tvec[-1]])
-        sol = solve_ivp(ode_fun, tspan, state0, args=(control, p, auxdata,), rtol=ode_rtol, atol=ode_atol)
+        if not use_numba:
+            sol = solve_ivp(ode_fun, tspan, state0, args=(control, p, auxdata,), rtol=ode_rtol, atol=ode_atol)
+        else:
+            sol = solve_ivp(ode_fun, tspan, state0, args=(control, p, *params,), rtol=ode_rtol, atol=ode_atol)
     
     
     return sol
 
+def propagate_numba(ode_fun, state0, control, p, tvec, auxdata):
+
+    ode_rtol = auxdata['param']['ode_rtol']
+    ode_atol = auxdata['param']['ode_atol']
+    use_numba = ode_fun.__name__.endswith("_numba")
+    if use_numba:
+        params = [auxdata['param'][name] for name in auxdata['param']['constant_names']]
+    
+    
+    if len(tvec) > 2:
+        if use_numba:
+            sol = odeint(ode_fun, state0, tvec, args=(control, p, *params,), tfirst=True, rtol=ode_rtol, atol=ode_atol)
+        else:
+            sol = odeint(ode_fun, state0, tvec, args=(control, p, auxdata,), tfirst=True, rtol=ode_rtol, atol=ode_atol)
+    else:
+        tspan = np.array([tvec[0], tvec[-1]])
+        if use_numba:
+            sol = solve_ivp(ode_fun, tspan, state0, args=(control, p, *params,), rtol=ode_rtol, atol=ode_atol)
+        else:
+            sol = solve_ivp(ode_fun, tspan, state0, args=(control, p, auxdata,), rtol=ode_rtol, atol=ode_atol)            
+
+    
+    return sol
 
 
 def propagate_odeint(ode_fun, state0, control, p, tvec, auxdata):
 
     ode_rtol = auxdata['param']['ode_rtol']
     ode_atol = auxdata['param']['ode_atol']
-
-    sol = odeint(ode_fun, state0, tvec, args=(control, p, auxdata,), tfirst=True, rtol=ode_rtol, atol=ode_atol)
-    
+    use_numba = ode_fun.__name__.endswith("_numba")
+    if use_numba:
+        params = [auxdata['param'][name] for name in auxdata['param']['constant_names']]
+        sol = odeint(ode_fun, state0, tvec, args=(control, p, *params,), tfirst=True, rtol=ode_rtol, atol=ode_atol)
+    else:
+        sol = odeint(ode_fun, state0, tvec, args=(control, p, auxdata,), tfirst=True, rtol=ode_rtol, atol=ode_atol)
     return sol
-    
+
+
 
 def propagate_ivp(ode_fun, state0, control, p, tvec, auxdata):
 
@@ -66,11 +109,15 @@ def propagate_ivp(ode_fun, state0, control, p, tvec, auxdata):
         teval = None
 
     tspan = np.array([tvec[0], tvec[-1]])
-
-    sol = solve_ivp(ode_fun, tspan, state0, t_eval=teval, args=(control, p, auxdata,), rtol=ode_rtol, atol=ode_atol)
+    use_numba = ode_fun.__name__.endswith("_numba")
+    if use_numba:
+        params = [auxdata['param'][name] for name in auxdata['param']['constant_names']]
+        sol = solve_ivp(ode_fun, tspan, state0, t_eval=teval, args=(control, p, *params,), rtol=ode_rtol, atol=ode_atol)
+    else:
+        sol = solve_ivp(ode_fun, tspan, state0, t_eval=teval, args=(control, p, auxdata,), rtol=ode_rtol, atol=ode_atol)
     
     return sol
-    
+
 
 
 # Define function to propagate with event detection
@@ -99,10 +146,18 @@ def propagate_event(ode_fun, x0, control, p, tspan, auxdata, plane='xz', directi
     ode_atol = auxdata['param']['ode_atol']
 
     # Run the solver with the event function
-    result = solve_ivp(
-        ode_fun, tspan, x0, args=(control, p, auxdata,),
-        rtol=ode_rtol, atol=ode_atol, events=plane_event
-    )
+    use_numba = ode_fun.__name__.endswith("_numba")
+    if use_numba:
+        params = [auxdata['param'][name] for name in auxdata['param']['constant_names']]
+        result = solve_ivp(
+            ode_fun, tspan, x0, args=(control, p, *params,),
+            rtol=ode_rtol, atol=ode_atol, events=plane_event
+        )
+    else:
+        result = solve_ivp(
+            ode_fun, tspan, x0, args=(control, p, auxdata,),
+            rtol=ode_rtol, atol=ode_atol, events=plane_event
+        )
     
     # Unpack result, including event times and states
     time = result.t

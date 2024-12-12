@@ -9,7 +9,6 @@ import propagation.propagator as propagation
 def objective_fun(states, controls, p, aux):
     obj = np.sum(p[:-1])
     return obj  
-   
         
 
 def event_constraints(x0, u0, xf, uf, p, aux):
@@ -139,8 +138,8 @@ def settings():
     misc_constraints_function = misc_constraints
     
     # functions for dynamics and corresponding jacobian
-    jacobian_x_function = bcrfbp.jacobian_x
-    dynamics_function = bcrfbp.dynamics
+    jacobian_x_function = bcrfbp.jacobian_x_numba
+    dynamics_function = bcrfbp.dynamics_numba
     
     # number of path, event, and misc constraints
     n_path_con = 0
@@ -211,7 +210,7 @@ def settings():
     constraints_dict = {'path_constraints': path_constraints_function, 'event_constraints': event_constraints_function, 'misc_constraints': misc_constraints_function}
     param_dict = {'mu': mu, 'mu_s': mu_s, 'om_sun': om_sun, 'sun_angle_t0': sun_angle_t0, 'a_sun': a_sun, 't0': t0, 'tf': tf, 'x0': x0, 'xf': xf, 'time_vec': time, 'n_man': n_man, 'man_index': man_index, \
         'n_man_defects': n_man_defects, 'man_index_defects': man_index_defects, 'dv_max': dv_max, \
-        'ode_atol': ode_atol, 'ode_rtol': ode_rtol, 'ode_atol_piecewise': ode_atol_piecewise, 'ode_rtol_piecewise': ode_rtol_piecewise}
+        'ode_atol': ode_atol, 'ode_rtol': ode_rtol, 'ode_atol_piecewise': ode_atol_piecewise, 'ode_rtol_piecewise': ode_rtol_piecewise, 'constant_names':['mu', 'mu_s', 'om_sun', 'sun_angle_t0', 'a_sun']}
     boundaries_dict = {'states_lower': states_lower, 'states_upper': states_upper, 'controls_lower': controls_lower, 'controls_upper': controls_upper, \
         'p_lower': p_lower, 'p_upper': p_upper, 'event_constraints_lower': event_constraints_lower, 'event_constraints_upper': event_constraints_upper, \
         'misc_constraints_lower': misc_constraints_lower, 'misc_constraints_upper': misc_constraints_upper}

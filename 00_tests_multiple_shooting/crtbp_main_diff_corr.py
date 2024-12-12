@@ -2,9 +2,9 @@ import sys
 import os
 
 # Construct the full path to the directory containing the package
-project_path = '/Users/hofmannc/git/apolune'
+project_path = '/workspace/apolune'
 
-# Add the directory to sys.path
+# Add the 'imatpy' directory to sys.path
 sys.path.append(project_path)
 
 import numpy as np
@@ -60,7 +60,7 @@ nlp = cyipopt.Problem(
 
 # set solver settings
 nlp.add_option('linear_solver', 'ma57')
-nlp.add_option('hsllib', 'libcoinhsl.dylib')
+nlp.add_option('hsllib', 'libcoinhsl.so')
 nlp.add_option('print_level', 5)
 # nlp.add_option('derivative_test', 'first-order')
 nlp.add_option('max_iter', 5000)

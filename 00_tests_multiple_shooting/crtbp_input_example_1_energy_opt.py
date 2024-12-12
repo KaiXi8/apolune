@@ -70,17 +70,14 @@ def settings():
     n_x = 6
     n_u = 3
     N = 100
-#     N = 10
     Ns = N - 1
     
-#     free_tf = 1
-    free_tf = 0
+    free_tf = 1
     
     # node indices where maneuvers are applied; numpy array within [0, Ns]
     man_index = np.array([0, 30, 60, Ns]) # works with N = 100
     # man_index = np.array([0, 10, 20, 40, 50, 60, 70, 80, 90, Ns]) # works with N = 100
 #     man_index = np.array([0, Ns]) # works with N = 100
-#     man_index = np.array([0, 4, Ns])
     
     # initial and final boundary conditions
     x0 = np.array([8.2338046140454002e-01, 0, 1.3886061447073000e-02, 0, 1.2947638542136800e-01, 0]) # adim
@@ -98,8 +95,7 @@ def settings():
     # n_p: number of free parameters in the optimization
     # here: no free parameters
     n_man = len(man_index)
-#     n_p = 1
-    n_p = 0
+    n_p = 1
     
     tf_ind = 0
     
@@ -125,8 +121,8 @@ def settings():
     misc_constraints_function = None
     
     # functions for dynamics and corresponding jacobian
-    jacobian_x_function = crtbp.jacobian_x
-    dynamics_function = crtbp.dynamics
+    jacobian_x_function = crtbp.jacobian_x_numba
+    dynamics_function = crtbp.dynamics_numba
     
     # number of path, event, and misc constraints
     n_path_con = 0
@@ -197,7 +193,8 @@ def settings():
     constraints_dict = {'path_constraints': path_constraints_function, 'event_constraints': event_constraints_function, 'misc_constraints': misc_constraints_function}
     param_dict = {'mu': mu, 't0': t0, 'tf': tf, 'x0': x0, 'xf': xf, 'time_vec': time, 'n_man': n_man, 'man_index': man_index, \
         'n_man_defects': n_man_defects, 'man_index_defects': man_index_defects, 'dv_max': dv_max, \
-        'ode_atol': ode_atol, 'ode_rtol': ode_rtol, 'ode_atol_piecewise': ode_atol_piecewise, 'ode_rtol_piecewise': ode_rtol_piecewise}
+        'ode_atol': ode_atol, 'ode_rtol': ode_rtol, 'ode_atol_piecewise': ode_atol_piecewise, 'ode_rtol_piecewise': ode_rtol_piecewise,
+                 'constant_names': ['mu']}
     boundaries_dict = {'states_lower': states_lower, 'states_upper': states_upper, 'controls_lower': controls_lower, 'controls_upper': controls_upper, \
         'p_lower': p_lower, 'p_upper': p_upper, 'event_constraints_lower': event_constraints_lower, 'event_constraints_upper': event_constraints_upper, \
         'misc_constraints_lower': misc_constraints_lower, 'misc_constraints_upper': misc_constraints_upper}

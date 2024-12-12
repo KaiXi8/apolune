@@ -133,8 +133,8 @@ def settings():
     misc_constraints_function = None
     
     # functions for dynamics and corresponding jacobian
-    jacobian_x_function = crtbp.jacobian_x
-    dynamics_function = crtbp.dynamics
+    jacobian_x_function = crtbp.jacobian_x_numba
+    dynamics_function = crtbp.dynamics_numba
     
     # number of path, event, and misc constraints
     n_path_con = 0
@@ -201,7 +201,8 @@ def settings():
     constraints_dict = {'path_constraints': path_constraints_function, 'event_constraints': event_constraints_function, 'misc_constraints': misc_constraints_function}
     param_dict = {'mu': mu, 't0': t0, 'tf': tf, 'x0': x0, 'xf': xf, 'time_vec': time, 'n_man': n_man, 'man_index': man_index, \
         'n_man_defects': n_man_defects, 'man_index_defects': man_index_defects, 'dv_max': dv_max, \
-        'ode_atol': ode_atol, 'ode_rtol': ode_rtol, 'ode_atol_piecewise': ode_atol_piecewise, 'ode_rtol_piecewise': ode_rtol_piecewise}
+        'ode_atol': ode_atol, 'ode_rtol': ode_rtol, 'ode_atol_piecewise': ode_atol_piecewise, 'ode_rtol_piecewise': ode_rtol_piecewise,
+                 'constant_names':['mu']}
     boundaries_dict = {'states_lower': states_lower, 'states_upper': states_upper, 'controls_lower': controls_lower, 'controls_upper': controls_upper, \
         'p_lower': p_lower, 'p_upper': p_upper, 'event_constraints_lower': event_constraints_lower, 'event_constraints_upper': event_constraints_upper, \
         'misc_constraints_lower': misc_constraints_lower, 'misc_constraints_upper': misc_constraints_upper}

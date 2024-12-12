@@ -1,6 +1,7 @@
 import numpy as np
+import numba
 
-
+@numba.njit
 def u_bar_first_partials(state, mu_cr3bp):
 
     r_13 = ((state[0] + mu_cr3bp) * (state[0] + mu_cr3bp) +
@@ -18,6 +19,7 @@ def u_bar_first_partials(state, mu_cr3bp):
     return u_bar
 
 
+@numba.njit
 def u_bar_second_partials(state, mu_cr3bp):
 
     r_12 = (state[0] + mu_cr3bp) * (state[0] + mu_cr3bp) + state[1] * state[1] + \
@@ -76,6 +78,18 @@ def dynamics(t, state, control, p, auxdata):
 
     return dot_state
 
+def dynamics_numba(t, state, control, p, mu_cr3bp):
+    u_bar = u_bar_first_partials(state, mu_cr3bp)
+
+    dot_state = np.empty(6)  # preallocate array for state derivatives
+    dot_state[0] = state[3]
+    dot_state[1] = state[4]
+    dot_state[2] = state[5]
+    dot_state[3] = 2.0 * state[4] - u_bar[0]
+    dot_state[4] = - 2.0 * state[3] - u_bar[1]
+    dot_state[5] = - u_bar[2]
+
+    return dot_state
 
 def jacobian_x(t, states, controls, p, auxdata):
     mu_cr3bp = auxdata['param']['mu']
@@ -88,15 +102,25 @@ def jacobian_x(t, states, controls, p, auxdata):
     x_stm[4, 3] = - 2.0
     
     return x_stm
-    
 
+@numba.njit
+def jacobian_x_numba(t, states, controls, p, mu_cr3bp):
+    # first-order ODEs for STM
+    x_stm = np.zeros((6, 6))
+    x_stm[0:3, 3:6] = np.eye(3)
+    x_stm[3:6, 0:3] = - u_bar_second_partials(states, mu_cr3bp)
+    x_stm[3, 4] = 2.0
+    x_stm[4, 3] = - 2.0
+    
+    return x_stm
+    
 def dynamics_stm(t, state, control, p, auxdata):
     state_dot = dynamics(t, state, control, p, auxdata)
     jac_x = jacobian_x(t, state, control, p, auxdata)
     
     return np.concatenate((state_dot, jac_x.flatten()))
 
-
+@numba.njit
 def u_bar(state, mu_var):
     """Augmented potential (from Koon et al. 2011, chapter 2). """
     x_var, y_var, z_var = state
@@ -108,6 +132,7 @@ def u_bar(state, mu_var):
     aug_pot = -1/2*(x_var**2+y_var**2) - mu1/r1_var - mu2/r2_var - 1/2*mu1*mu2
     return aug_pot
 
+@numba.njit
 def jacobi(state, mu_var):
     """Computes the jacobi constant at a given state in the CRTBP system with the mass ratio mu.
     See equation 2.3.14 of Koon et al. 2011. """
