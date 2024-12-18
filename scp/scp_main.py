@@ -304,11 +304,12 @@ if model == 4:
     auxdata['coeff_nbp'] = coeff_nbp
     auxdata['f_precomputed'] = f_precomputed
     auxdata['homot_param'] = homot_param
+    auxdata['sel_homotopy'] = sel_homotopy
 
     # # Evaluate homotopy at specific point using precomputed approximation
-    # y_at_point = []
-    # for i1 in range(len(coeff_3bp)):
-    #     y_at_point.append(homotopy.eval_homotopy_at_point(sel_homotopy, homot_param, tau_vec, x_point_val, coeff_3bp[i1], f_precomputed[i1]))
+    # coeff_homot = []
+    # for i1 in range(len(auxdata['coeff_3bp'])):
+    #     coeff_homot.append( homotopy.eval_homotopy_at_point( auxdata['sel_homotopy'], auxdata['homot_param'], auxdata["tau_vec"], x_point_val, auxdata['coeff_3bp'][i1], auxdata['f_precomputed'][i1] ) )
 
 verbose_solver = False
 
