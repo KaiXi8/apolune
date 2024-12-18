@@ -138,7 +138,7 @@ model = 4 # use homotopy
 # Compute n-body coefficients function approximation to be used in homotopy
 if model == 4: 
     # Define parameters for approximation methods
-    n_components_fft = 10000
+    n_components_fft = 100 # not used for now since not removing high frequency components
     num_segments_piecewise = 20
     polynomial_degree = 3
     
