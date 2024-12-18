@@ -3,7 +3,7 @@ from numba import jit, prange
 import dynamics_coeff.crtbp_dynamics as crtbp
 import dynamics_coeff.bcrfbp_dynamics as bcrfbp
 import dynamics_coeff.rnbp_rpf_dynamics_nonuniform as rnbp_rpf
-
+from dynamics_coeff.homotopy import eval_homotopy_at_point
 
 
 def dynamics(tau, state, control, p, auxdata):
@@ -26,7 +26,7 @@ def dynamics(tau, state, control, p, auxdata):
         
         b = bcrfbp.compute_coeff(tau, mu_sun, a_sun, om_sun, sun_angle_t0)
         grad_om_adim = bcrfbp.grad_omega(tau, rho, mu_crtbp, mu_sun, a_sun, om_sun, sun_angle_t0)
-    elif model == 3:
+    elif model == 3 or model == 4: #3 is rpnbp, 4 uses manually sent in coefficeints
         id_primary = auxdata["id_primary"]
         id_secondary = auxdata["id_secondary"]
         mu_bodies_dim = auxdata["mu_bodies"]
@@ -36,8 +36,16 @@ def dynamics(tau, state, control, p, auxdata):
         epoch_t0 = auxdata["epoch_t0"]
         tau_vec = auxdata["tau_vec"]
         t_vec = auxdata["t_vec"]
-        b, grad_om_adim = rnbp_rpf.compute_coeff_grad(tau, state, id_primary, id_secondary, mu_bodies_dim, naif_id_bodies, observer_id, reference_frame, epoch_t0, tau_vec, t_vec)
-    
+        if model == 3:
+            b, grad_om_adim = rnbp_rpf.compute_coeff_grad(tau, state, id_primary, id_secondary, mu_bodies_dim, naif_id_bodies, observer_id, reference_frame, epoch_t0, tau_vec, t_vec)
+        else:
+            # homotopy_val = np.interp(tau, auxdata['tau_linspace'], auxdata['homotopy']) if you want to use time-varying homotopy, uncomment this and the other b[i] definition. it is much slower.
+            b = np.zeros(13)
+            for i in range(len(b)):
+                # b[i] = eval_homotopy_at_point(homotopy_val, auxdata['tau_linspace'], auxdata['homotopy_type'], tau, auxdata['b_3bp'][i], auxdata['f_precomputed'][i])   #directly compute homotopy using homotopy file
+                b[i] = np.interp(tau, auxdata['tau_linspace'], auxdata['b_precomputed'][i])
+            grad_om_adim = rnbp_rpf.compute_grad(tau, state, id_primary, id_secondary, mu_bodies_dim, naif_id_bodies, observer_id, reference_frame, epoch_t0, tau_vec, t_vec) #compute grad without computing b1,...
+        
     return dynamics_coeff(state, b, grad_om_adim)
 
 
@@ -114,7 +122,7 @@ def jacobian(tau, state, control, p, auxdata):
         
         b = bcrfbp.compute_coeff(tau, mu_sun, a_sun, om_sun, sun_angle_t0)
         jac_grad_om_adim = bcrfbp.jac_grad_omega(tau, rho, mu_crtbp, mu_sun, a_sun, om_sun, sun_angle_t0)
-    elif model == 3:
+    elif model == 3 or model == 4:
         id_primary = auxdata["id_primary"]
         id_secondary = auxdata["id_secondary"]
         mu_bodies_dim = auxdata["mu_bodies"]
@@ -124,8 +132,15 @@ def jacobian(tau, state, control, p, auxdata):
         epoch_t0 = auxdata["epoch_t0"]
         tau_vec = auxdata["tau_vec"]
         t_vec = auxdata["t_vec"]
-        
-        b, jac_grad_om_adim = rnbp_rpf.compute_coeff_jac_grad(tau, state, id_primary, id_secondary, mu_bodies_dim, naif_id_bodies, observer_id, reference_frame, epoch_t0, tau_vec, t_vec)
+        if model == 3:
+            b, jac_grad_om_adim = rnbp_rpf.compute_coeff_jac_grad(tau, state, id_primary, id_secondary, mu_bodies_dim, naif_id_bodies, observer_id, reference_frame, epoch_t0, tau_vec, t_vec)
+        else:
+            # homotopy_val = np.interp(tau, auxdata['tau_linspace'], auxdata['homotopy']) #linearly interpolate homotopy (i.e. epsilon(t)) to compute homotopy weighting
+            b = np.zeros(13)
+            for i in range(len(b)):
+                # b[i] = (eval_homotopy_at_point(homotopy_val, auxdata['tau_linspace'], auxdata['homotopy_type'], tau, auxdata['b_3bp'][i], auxdata['f_precomputed'][i]))   #directly compute homotopy using homotopy file
+                b[i] = np.interp(tau, auxdata['tau_linspace'], auxdata['b_precomputed'][i])
+            jac_grad_om_adim = rnbp_rpf.compute_jac_grad(tau, state, id_primary, id_secondary, mu_bodies_dim, naif_id_bodies, observer_id, reference_frame, epoch_t0, tau_vec, t_vec) #compute grad without computing b1,...
     
     return jacobian_coeff(b, jac_grad_om_adim)
 

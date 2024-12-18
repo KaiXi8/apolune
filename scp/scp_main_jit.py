@@ -2,7 +2,7 @@ import sys
 import os
 
 # Construct the full path to the directory containing the package
-project_path = '/Users/hofmannc/git/apolune'
+project_path = '/workspace/apolune'
 
 # Add the directory to sys.path
 sys.path.append(project_path)
@@ -19,7 +19,10 @@ import matplotlib.pyplot as plt
 import spiceypy as spice
 import init.load_kernels as krn
 import dynamics_coeff.rnbp_rpf_utils as rnbp_utils
+from dynamics_coeff.rnbp_rpf_dynamics_nonuniform import compute_coeffs
+import dynamics_coeff.homotopy as homotopy
 import time as tm
+from numpy.fft import fft, fftfreq, ifft
 import scp_core
 
 def initial_guess(auxdata):
@@ -131,7 +134,73 @@ free_tf = 0
 
 # model = 1 # crtbp
 # model = 2 # bcrfbp
-model = 3 # rnbp_rpf
+# model = 3 # rnbp_rpf
+model = 4 #use homotopy
+
+if model == 4: #compute homotopy-related values for 4th model
+    # Compute coefficients for time vector
+    sel_points = 2 * len(tau_vec)
+    tau_linspace = np.linspace(tau_vec[0], tau_vec[-1], sel_points)
+    b1 = np.zeros(sel_points)
+    b2 = np.zeros(sel_points)
+    b3 = np.zeros(sel_points)
+    b4 = np.zeros(sel_points)
+    b5 = np.zeros(sel_points)
+    b6 = np.zeros(sel_points)
+    b7 = np.zeros(sel_points)
+    b8 = np.zeros(sel_points)
+    b9 = np.zeros(sel_points)
+    b10 = np.zeros(sel_points)
+    b11 = np.zeros(sel_points)
+    b12 = np.zeros(sel_points)
+    b13 = np.zeros(sel_points)
+    
+    for i in range(len(tau_linspace)):
+        b1[i], b2[i], b3[i], b4[i], b5[i], b6[i], b7[i], b8[i], b9[i], b10[i], b11[i], b12[i], b13[i] = compute_coeffs(tau_linspace[i], id_primary, id_secondary, mu_bodies, naif_id_bodies, observer_id, reference_frame, epoch_t0, tau_vec, t_vec)
+    
+    # Define 3BP coefficients
+    b_3bp = np.array([0, 0, 0, 0, 2, 0, 1, 0, 0, 1, 0, 0, 1])
+    
+    # Select homotopy method and extrapolation point
+    sel_homotopy = 1 # 1: FFT ; 2: Piecewise ; 3: Polynomial
+    
+    # Define parameters for approximation methods
+    n_components_fft = 10000
+    num_segments_piecewise = 20
+    polynomial_degree = 3
+    
+    # Compute homotopy
+    y = [b1, b2, b3, b4, b5, b6, b7, b8, b9, b10, b11, b12, b13]
+    homotopy_vals = [1.0 for i in tau_linspace] # if you want to use time-varying homotopy values, you need to change the dynamics in scp_core
+    y_homotopy = np.zeros((len(y), len(tau_linspace)))
+    y_approx = []
+    f_precomputed = []
+    
+    for i in range(len(y)):
+        if sel_homotopy == 1:
+            y_approx.append(homotopy.fft_approx_function(tau_linspace, fft(y[i]), n_components_fft) )
+            y_homotopy[i,:] = homotopy.general_homotopy(homotopy_vals[0], tau_linspace, y[i], 'fft', n_components_fft, b_3bp[i])
+    
+            # Precompute fft approximation
+            f_precomputed.append(y_approx[i])
+    
+        elif sel_homotopy == 2:
+            y_approx.append(homotopy.piecewise_linear_approx_function(tau_linspace, y[i], num_segments_piecewise) )
+            y_homotopy[i,:] = homotopy.general_homotopy(homotopy_vals[0], tau_linspace, y[i], 'piecewise', num_segments_piecewise, b_3bp[i])
+    
+            # Precompute interp1d function for Piecewise
+            segment_indices = np.round(np.linspace(0, len(tau_linspace) - 1, num_segments_piecewise + 1)).astype(int)
+            x_segments = tau_linspace[segment_indices]
+            y_segments = y[i][segment_indices]
+            f_precomputed = interp1d(x_segments, y_segments) 
+    
+        elif sel_homotopy == 3:
+            y_approx.append(homotopy.polynomial_approx_function(tau_linspace, y[i], polynomial_degree) )
+            y_homotopy[i,:] = homotopy.general_homotopy(homotopy_vals[0], tau_linspace, y[i], 'polynomial', polynomial_degree, b_3bp[i])
+    
+            # Precompute polynomial coefficients
+            f_precomputed.append(y_approx[i])
+        
 
 
 # node indices where maneuvers are applied; numpy array within [0, Ns]
@@ -278,7 +347,15 @@ auxdata["epoch_t0"] = epoch_t0
 auxdata["tau_vec"] = tau_vec
 auxdata["t_vec"] = t_vec
 
-
+#for homotopy
+if model == 4:
+    auxdata['tau_linspace'] = tau_linspace
+    auxdata['homotopy'] = homotopy_vals
+    auxdata['homotopy_type'] = sel_homotopy
+    auxdata['b_3bp'] = b_3bp
+    auxdata['f_precomputed'] = f_precomputed
+    auxdata['b_precomputed'] = y_homotopy
+    
 verbose_solver = False
 
 feasibility_tol = 1e-7
