@@ -53,16 +53,7 @@ def eval_homotopy_at_point(sel_homotopy, homot_param, x_data, x_point, y_data_3b
     """
     Efficiently evaluates the homotopy at a specific x_data point.
     """
-
-    # Assume x_data is evenly spaced - Hakan
-    # dx = x_data[1] - x_data[0]  # Spacing between points
-    # index = round((x_point - x_data[0]) / dx)  # Compute nearest index
-    # index = max(0, min(index, len(x_data) - 1))  # Clamp to valid range
-    index = np.abs(x_data - x_point).argmin()
-    if x_data[index] != x_point:
-        y_3bp_at_point = np.interp(x_point, x_data, y_data_3bp)
-    else:
-        y_3bp_at_point = y_data_3bp[index]
+    y_3bp_at_point = np.interp(x_point, x_data, y_data_3bp)
    
     if sel_homotopy == 1: # fft
         y_approx_at_point = np.interp(x_point % (x_data[-1] - x_data[0]), x_data, f_precomputed)
@@ -103,13 +94,15 @@ def get_homotopy_coefficients(sel_homotopy, homotopy_param, tau_vec, t_vec, id_p
     coeff_nbp = [b1, b2, b3, b4, b5, b6, b7, b8, b9, b10, b11, b12, b13]
 
     # Define 3BP coefficients
-    coeff_3bp = crtbp_coeffs()
-    coeff_3bp = coeff_3bp * np.ones(len(tau_vec))
+    coeff_3bp = list(crtbp_coeffs())
+    for i in range(len(coeff_3bp)):
+        coeff_3bp[i] = coeff_3bp[i] * np.ones(len(tau_vec))
+    coeff_3bp = np.array(coeff_3bp)
         
     # Compute n-body coefficients function approximation   
     y_approx = []
     f_precomputed = []
-    for i in range(len(y)):
+    for i in range(len(coeff_nbp)):
         if sel_homotopy == 1: # Precompute fft approximation
             y_approx.append( fft_approx_function(tau_vec, fft(coeff_nbp[i]), homotopy_param) )
             f_precomputed.append(y_approx[i])

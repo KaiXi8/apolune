@@ -137,10 +137,22 @@ free_tf = 0
 # model = 3 # rnbp_rpf
 model = 4 #use homotopy
 
-if model == 4: #compute homotopy-related values for 4th model
-    sel_points = 2 * len(tau_vec)
-    homotopy_vals = np.array([1 for i in range(sel_points)])
-    tau_linspace, y_homotopy = homotopy.get_homotopy_coefficients(sel_points, homotopy_vals, tau_vec, t_vec, id_primary, id_secondary, mu_bodies, naif_id_bodies, observer_id, reference_frame_encoded, epoch_t0, sel_homotopy=1, homotopy_param=10000, use_jit=True)
+if model == 4: 
+    # Define parameters for approximation methods
+    n_components_fft = 100 # not used for now since not removing high frequency components
+    num_segments_piecewise = 20
+    polynomial_degree = 3
+    
+    # Select homotopy method and extrapolation point
+    sel_homotopy = 1 # 1: FFT ; 2: Piecewise ; 3: Polynomial
+    if sel_homotopy == 1:
+        homotopy_param = n_components_fft
+    elif sel_homotopy == 2:
+        homotopy_param = num_segments_piecewise
+    elif sel_homotopy == 3:
+        homotopy_param = polynomial_degree
+    
+    coeff_3bp, coeff_nbp, f_precomputed = homotopy.get_homotopy_coefficients(sel_homotopy, homotopy_param, tau_vec, t_vec, id_primary, id_secondary, mu_bodies, naif_id_bodies, observer_id, reference_frame_encoded, epoch_t0, use_jit=True)
 
 # node indices where maneuvers are applied; numpy array within [0, Ns]
 man_index = np.array([0, 30, 60, Ns])
@@ -288,8 +300,12 @@ auxdata["t_vec"] = t_vec
 
 #for homotopy
 if model == 4:
-    auxdata['tau_linspace'] = tau_linspace
-    auxdata['b_precomputed'] = y_homotopy
+    homot_param = 1.0 # Homotopy parameter (0 <= eps <= 1), would update this with a function in the future
+    auxdata['coeff_3bp'] = coeff_3bp
+    auxdata['coeff_nbp'] = coeff_nbp
+    auxdata['f_precomputed'] = f_precomputed
+    auxdata['homot_param'] = homot_param
+    auxdata['sel_homotopy'] = sel_homotopy
     
 verbose_solver = False
 

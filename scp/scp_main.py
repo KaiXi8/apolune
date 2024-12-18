@@ -298,18 +298,12 @@ auxdata["tau_vec"] = tau_vec
 auxdata["t_vec"] = t_vec
 
 if model == 4:
-    homot_param = 0.5 # Homotopy parameter (0 <= eps <= 1)
-    x_point_val = 34.02  # The specific x-value you want to extrapolate from homotopy
+    homot_param = 1.0 # Homotopy parameter (0 <= eps <= 1)
     auxdata['coeff_3bp'] = coeff_3bp
     auxdata['coeff_nbp'] = coeff_nbp
     auxdata['f_precomputed'] = f_precomputed
     auxdata['homot_param'] = homot_param
     auxdata['sel_homotopy'] = sel_homotopy
-
-    # # Evaluate homotopy at specific point using precomputed approximation
-    # coeff_homot = []
-    # for i1 in range(len(auxdata['coeff_3bp'])):
-    #     coeff_homot.append( homotopy.eval_homotopy_at_point( auxdata['sel_homotopy'], auxdata['homot_param'], auxdata["tau_vec"], x_point_val, auxdata['coeff_3bp'][i1], auxdata['f_precomputed'][i1] ) )
 
 verbose_solver = False
 

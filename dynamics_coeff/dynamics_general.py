@@ -40,9 +40,9 @@ def dynamics(tau, state, control, p, auxdata):
             b, grad_om_adim = rnbp_rpf.compute_coeff_grad(tau, state, id_primary, id_secondary, mu_bodies_dim, naif_id_bodies, observer_id, reference_frame, epoch_t0, tau_vec, t_vec)
         else:
             b = np.zeros(13)
-            for i in range(len(b)):
-                b[i] = np.interp(tau, auxdata['tau_linspace'], auxdata['b_precomputed'][i])
-            grad_om_adim = rnbp_rpf.compute_grad(tau, state, id_primary, id_secondary, mu_bodies_dim, naif_id_bodies, observer_id, reference_frame, epoch_t0, tau_vec, t_vec) #compute grad without computing b1,...
+            for i1 in range(len(auxdata['coeff_3bp'])):
+                b[i1] = eval_homotopy_at_point( auxdata['sel_homotopy'], auxdata['homot_param'], auxdata["tau_vec"], tau, auxdata['coeff_3bp'][i1], auxdata['f_precomputed'][i1] )
+           grad_om_adim = rnbp_rpf.compute_grad(tau, state, id_primary, id_secondary, mu_bodies_dim, naif_id_bodies, observer_id, reference_frame, epoch_t0, tau_vec, t_vec) #compute grad without computing b1,...
         
     return dynamics_coeff(state, b, grad_om_adim)
 
@@ -134,8 +134,8 @@ def jacobian(tau, state, control, p, auxdata):
             b, jac_grad_om_adim = rnbp_rpf.compute_coeff_jac_grad(tau, state, id_primary, id_secondary, mu_bodies_dim, naif_id_bodies, observer_id, reference_frame, epoch_t0, tau_vec, t_vec)
         else:
             b = np.zeros(13)
-            for i in range(len(b)):
-                b[i] = np.interp(tau, auxdata['tau_linspace'], auxdata['b_precomputed'][i])
+            for i1 in range(len(auxdata['coeff_3bp'])):
+                b[i1] = eval_homotopy_at_point( auxdata['sel_homotopy'], auxdata['homot_param'], auxdata["tau_vec"], tau, auxdata['coeff_3bp'][i1], auxdata['f_precomputed'][i1] )
             jac_grad_om_adim = rnbp_rpf.compute_jac_grad(tau, state, id_primary, id_secondary, mu_bodies_dim, naif_id_bodies, observer_id, reference_frame, epoch_t0, tau_vec, t_vec) #compute grad without computing b1,...
     
     return jacobian_coeff(b, jac_grad_om_adim)
