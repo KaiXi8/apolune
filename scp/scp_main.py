@@ -22,7 +22,6 @@ import dynamics_coeff.rnbp_rpf_utils as rnbp_utils
 from dynamics_coeff.rnbp_rpf_dynamics_nonuniform import compute_coeffs
 import dynamics_coeff.homotopy as homotopy
 import time as tm
-from numpy.fft import fft, fftfreq, ifft
 import scp_core
 
 def initial_guess(auxdata):
@@ -134,12 +133,25 @@ free_tf = 0
 # model = 1 # crtbp
 # model = 2 # bcrfbp
 # model = 3 # rnbp_rpf
-model = 4 #use homotopy
+model = 4 # use homotopy
 
-if model == 4: #compute homotopy-related values for 4th model
-    sel_points = 2 * len(tau_vec)
-    homotopy_vals = np.array([1 for i in range(sel_points)])
-    tau_linspace, y_homotopy = homotopy.get_homotopy_coefficients(sel_points, homotopy_vals, tau_vec, t_vec, id_primary, id_secondary, mu_bodies, naif_id_bodies, observer_id, reference_frame, epoch_t0, sel_homotopy=1, homotopy_param=10000, use_jit=False)
+# Compute n-body coefficients function approximation to be used in homotopy
+if model == 4: 
+    # Define parameters for approximation methods
+    n_components_fft = 10000
+    num_segments_piecewise = 20
+    polynomial_degree = 3
+    
+    # Select homotopy method and extrapolation point
+    sel_homotopy = 1 # 1: FFT ; 2: Piecewise ; 3: Polynomial
+    if sel_homotopy == 1:
+        homotopy_param = n_components_fft
+    elif sel_homotopy == 2:
+        homotopy_param = num_segments_piecewise
+    elif sel_homotopy == 3:
+        homotopy_param = polynomial_degree
+    
+    coeff_3bp, coeff_nbp, f_precomputed = homotopy.get_homotopy_coefficients(sel_homotopy, homotopy_param, tau_vec, t_vec, id_primary, id_secondary, mu_bodies, naif_id_bodies, observer_id, reference_frame, epoch_t0, use_jit=False)
 
 # node indices where maneuvers are applied; numpy array within [0, Ns]
 man_index = np.array([0, 30, 60, Ns])
@@ -226,13 +238,13 @@ stm_x_ind = slice(n_x, stm_x_len+n_x)
 stm_t_ind = slice(stm_x_len+n_x, stm_x_len+n_x+stm_t_len)
 stm_const_ind = slice(stm_x_len+n_x+stm_t_len, stm_x_len+n_x+stm_t_len+stm_const_len)
 
-V0 = np.zeros(V_len);
+V0 = np.zeros(V_len)
 V0[stm_x_ind] = np.identity(n_x).flatten()
  
-x_stm = np.zeros((N,n_x));
-stm_x = np.zeros((Ns,n_x*n_x));
-stm_t = np.zeros((Ns,stm_t_len));
-stm_const = np.zeros((Ns,stm_const_len));
+x_stm = np.zeros((N,n_x))
+stm_x = np.zeros((Ns,n_x*n_x))
+stm_t = np.zeros((Ns,stm_t_len))
+stm_const = np.zeros((Ns,stm_const_len))
 
 if free_tf == 1:
     time = np.linspace(0.0, 1.0, N)
@@ -285,10 +297,18 @@ auxdata["epoch_t0"] = epoch_t0
 auxdata["tau_vec"] = tau_vec
 auxdata["t_vec"] = t_vec
 
-#for homotopy
 if model == 4:
-    auxdata['tau_linspace'] = tau_linspace
-    auxdata['b_precomputed'] = y_homotopy
+    homot_param = 0.5 # Homotopy parameter (0 <= eps <= 1)
+    x_point_val = 34.02  # The specific x-value you want to extrapolate from homotopy
+    auxdata['coeff_3bp'] = coeff_3bp
+    auxdata['coeff_nbp'] = coeff_nbp
+    auxdata['f_precomputed'] = f_precomputed
+    auxdata['homot_param'] = homot_param
+
+    # # Evaluate homotopy at specific point using precomputed approximation
+    # y_at_point = []
+    # for i1 in range(len(coeff_3bp)):
+    #     y_at_point.append(homotopy.eval_homotopy_at_point(sel_homotopy, homot_param, tau_vec, x_point_val, coeff_3bp[i1], f_precomputed[i1]))
 
 verbose_solver = False
 
