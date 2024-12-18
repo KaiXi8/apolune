@@ -103,10 +103,8 @@ def dynamics(tau, state, control, p, auxdata):
         if model == 3:
             b, grad_om_adim = rnbp_rpf.compute_coeff_grad(tau, state, id_primary, id_secondary, mu_bodies_dim, naif_id_bodies, observer_id, reference_frame, epoch_t0, tau_vec, t_vec)
         else:
-            # homotopy_val = np.interp(tau, auxdata['tau_linspace'], auxdata['homotopy']) if you want to use time-varying homotopy, uncomment this and the other b[i] definition. it is much slower.
             b = np.zeros(13)
             for i in range(len(b)):
-                # b[i] = eval_homotopy_at_point(homotopy_val, auxdata['tau_linspace'], auxdata['homotopy_type'], tau, auxdata['b_3bp'][i], auxdata['f_precomputed'][i])   #directly compute homotopy using homotopy file
                 b[i] = np.interp(tau, auxdata['tau_linspace'], auxdata['b_precomputed'][i])
             grad_om_adim = rnbp_rpf.compute_grad(tau, state, id_primary, id_secondary, mu_bodies_dim, naif_id_bodies, observer_id, reference_frame, epoch_t0, tau_vec, t_vec) #compute grad without computing b1,...
         
@@ -199,10 +197,8 @@ def jacobian(tau, state, control, p, auxdata):
         if model == 3:
             b, jac_grad_om_adim = rnbp_rpf.compute_coeff_jac_grad(tau, state, id_primary, id_secondary, mu_bodies_dim, naif_id_bodies, observer_id, reference_frame, epoch_t0, tau_vec, t_vec)
         else:
-            # homotopy_val = np.interp(tau, auxdata['tau_linspace'], auxdata['homotopy']) #linearly interpolate homotopy (i.e. epsilon(t)) to compute homotopy weighting
             b = np.zeros(13)
             for i in range(len(b)):
-                # b[i] = (eval_homotopy_at_point(homotopy_val, auxdata['tau_linspace'], auxdata['homotopy_type'], tau, auxdata['b_3bp'][i], auxdata['f_precomputed'][i]))   #directly compute homotopy using homotopy file
                 b[i] = np.interp(tau, auxdata['tau_linspace'], auxdata['b_precomputed'][i])
             jac_grad_om_adim = rnbp_rpf.compute_jac_grad(tau, state, id_primary, id_secondary, mu_bodies_dim, naif_id_bodies, observer_id, reference_frame, epoch_t0, tau_vec, t_vec) #compute grad without computing b1,...
     
