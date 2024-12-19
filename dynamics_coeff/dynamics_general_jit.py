@@ -3,7 +3,7 @@ from numba import jit, prange
 import dynamics_coeff.crtbp_dynamics as crtbp
 import dynamics_coeff.bcrfbp_dynamics as bcrfbp
 import dynamics_coeff.rnbp_rpf_dynamics_nonuniform_jit as rnbp_rpf
-
+from dynamics_coeff.homotopy import eval_homotopy_at_point
 
 # @jit('float64(float64[::1], float64[:,::1], float64[::1])', nopython=True, nogil=True, fastmath=True)
 # def compute_omega(rho, rho_p, mu_bodies_adim):
@@ -90,7 +90,7 @@ def dynamics(tau, state, control, p, auxdata):
         
         b = bcrfbp.compute_coeff(tau, mu_sun, a_sun, om_sun, sun_angle_t0)
         grad_om_adim = bcrfbp.grad_omega(tau, rho, mu_crtbp, mu_sun, a_sun, om_sun, sun_angle_t0)
-    elif model == 3:
+    elif model == 3 or model == 4: #3 is rpnbp, 4 uses manually sent in coefficeints
         id_primary = auxdata["id_primary"]
         id_secondary = auxdata["id_secondary"]
         mu_bodies_dim = auxdata["mu_bodies"]
@@ -100,12 +100,18 @@ def dynamics(tau, state, control, p, auxdata):
         epoch_t0 = auxdata["epoch_t0"]
         tau_vec = auxdata["tau_vec"]
         t_vec = auxdata["t_vec"]
-        b, grad_om_adim = rnbp_rpf.compute_coeff_grad(tau, state, id_primary, id_secondary, mu_bodies_dim, naif_id_bodies, observer_id, reference_frame, epoch_t0, tau_vec, t_vec)
-    
+        if model == 3:
+            b, grad_om_adim = rnbp_rpf.compute_coeff_grad(tau, state, id_primary, id_secondary, mu_bodies_dim, naif_id_bodies, observer_id, reference_frame, epoch_t0, tau_vec, t_vec)
+        else:
+            b = np.zeros(13)
+            for i1 in range(len(auxdata['coeff_3bp'])):
+                b[i1] = eval_homotopy_at_point( auxdata['sel_homotopy'], auxdata['homot_param'], auxdata["tau_vec"], tau, auxdata['coeff_3bp'][i1], auxdata['f_precomputed'][i1] )
+            grad_om_adim = rnbp_rpf.compute_grad(tau, state, id_primary, id_secondary, mu_bodies_dim, naif_id_bodies, observer_id, reference_frame, epoch_t0, tau_vec, t_vec) #compute grad without computing b1,...
+        
     return dynamics_coeff(state, b, grad_om_adim)
 
 
-
+@jit
 def dynamics_coeff(state, b, grad_om_adim):
     rho = state[:3]
     eta = state[3:6]
@@ -178,7 +184,7 @@ def jacobian(tau, state, control, p, auxdata):
         
         b = bcrfbp.compute_coeff(tau, mu_sun, a_sun, om_sun, sun_angle_t0)
         jac_grad_om_adim = bcrfbp.jac_grad_omega(tau, rho, mu_crtbp, mu_sun, a_sun, om_sun, sun_angle_t0)
-    elif model == 3:
+    elif model == 3 or model == 4:
         id_primary = auxdata["id_primary"]
         id_secondary = auxdata["id_secondary"]
         mu_bodies_dim = auxdata["mu_bodies"]
@@ -188,8 +194,13 @@ def jacobian(tau, state, control, p, auxdata):
         epoch_t0 = auxdata["epoch_t0"]
         tau_vec = auxdata["tau_vec"]
         t_vec = auxdata["t_vec"]
-        
-        b, jac_grad_om_adim = rnbp_rpf.compute_coeff_jac_grad(tau, state, id_primary, id_secondary, mu_bodies_dim, naif_id_bodies, observer_id, reference_frame, epoch_t0, tau_vec, t_vec)
+        if model == 3:
+            b, jac_grad_om_adim = rnbp_rpf.compute_coeff_jac_grad(tau, state, id_primary, id_secondary, mu_bodies_dim, naif_id_bodies, observer_id, reference_frame, epoch_t0, tau_vec, t_vec)
+        else:
+            b = np.zeros(13)
+            for i1 in range(len(auxdata['coeff_3bp'])):
+                b[i1] = eval_homotopy_at_point( auxdata['sel_homotopy'], auxdata['homot_param'], auxdata["tau_vec"], tau, auxdata['coeff_3bp'][i1], auxdata['f_precomputed'][i1] )
+            jac_grad_om_adim = rnbp_rpf.compute_jac_grad(tau, state, id_primary, id_secondary, mu_bodies_dim, naif_id_bodies, observer_id, reference_frame, epoch_t0, tau_vec, t_vec) #compute grad without computing b1,...
     
     return jacobian_coeff(b, jac_grad_om_adim)
 

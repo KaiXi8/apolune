@@ -2,7 +2,7 @@ import sys
 import os
 
 # Construct the full path to the directory containing the package
-project_path = '/Users/hofmannc/git/apolune'
+project_path = '/workspace/apolune'
 
 # Add the directory to sys.path
 sys.path.append(project_path)
@@ -19,7 +19,10 @@ import matplotlib.pyplot as plt
 import spiceypy as spice
 import init.load_kernels as krn
 import dynamics_coeff.rnbp_rpf_utils as rnbp_utils
+from dynamics_coeff.rnbp_rpf_dynamics_nonuniform_jit import compute_coeffs
+import dynamics_coeff.homotopy as homotopy
 import time as tm
+from numpy.fft import fft, fftfreq, ifft
 import scp_core
 
 def initial_guess(auxdata):
@@ -131,8 +134,25 @@ free_tf = 0
 
 # model = 1 # crtbp
 # model = 2 # bcrfbp
-model = 3 # rnbp_rpf
+# model = 3 # rnbp_rpf
+model = 4 #use homotopy
 
+if model == 4: 
+    # Define parameters for approximation methods
+    n_components_fft = 100 # not used for now since not removing high frequency components
+    num_segments_piecewise = 20
+    polynomial_degree = 3
+    
+    # Select homotopy method and extrapolation point
+    sel_homotopy = 1 # 1: FFT ; 2: Piecewise ; 3: Polynomial
+    if sel_homotopy == 1:
+        homotopy_param = n_components_fft
+    elif sel_homotopy == 2:
+        homotopy_param = num_segments_piecewise
+    elif sel_homotopy == 3:
+        homotopy_param = polynomial_degree
+    
+    coeff_3bp, coeff_nbp, f_precomputed = homotopy.get_homotopy_coefficients(sel_homotopy, homotopy_param, tau_vec, t_vec, id_primary, id_secondary, mu_bodies, naif_id_bodies, observer_id, reference_frame_encoded, epoch_t0, use_jit=True)
 
 # node indices where maneuvers are applied; numpy array within [0, Ns]
 man_index = np.array([0, 30, 60, Ns])
@@ -278,7 +298,15 @@ auxdata["epoch_t0"] = epoch_t0
 auxdata["tau_vec"] = tau_vec
 auxdata["t_vec"] = t_vec
 
-
+#for homotopy
+if model == 4:
+    homot_param = 1.0 # Homotopy parameter (0 <= eps <= 1), would update this with a function in the future
+    auxdata['coeff_3bp'] = coeff_3bp
+    auxdata['coeff_nbp'] = coeff_nbp
+    auxdata['f_precomputed'] = f_precomputed
+    auxdata['homot_param'] = homot_param
+    auxdata['sel_homotopy'] = sel_homotopy
+    
 verbose_solver = False
 
 feasibility_tol = 1e-7

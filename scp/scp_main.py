@@ -2,7 +2,7 @@ import sys
 import os
 
 # Construct the full path to the directory containing the package
-project_path = '/Users/hofmannc/git/apolune'
+project_path = '/workspace/apolune'
 
 # Add the directory to sys.path
 sys.path.append(project_path)
@@ -19,6 +19,8 @@ import matplotlib.pyplot as plt
 import spiceypy as spice
 import init.load_kernels as krn
 import dynamics_coeff.rnbp_rpf_utils as rnbp_utils
+from dynamics_coeff.rnbp_rpf_dynamics_nonuniform import compute_coeffs
+import dynamics_coeff.homotopy as homotopy
 import time as tm
 import scp_core
 
@@ -119,7 +121,6 @@ n_points = 5000
 tau_vec_input = np.linspace(tau_0, tau_f, n_points)
 tau_vec, t_vec = rnbp_utils.compute_time(tau_vec_input, t0, epoch_t0, mu_p, mu_s, naif_id_p, naif_id_s, reference_frame, ode_rtol = ode_rtol, ode_atol = ode_atol)
 
-
 n_x = 6
 n_u = 3
 N = 100
@@ -131,8 +132,26 @@ free_tf = 0
 
 # model = 1 # crtbp
 # model = 2 # bcrfbp
-model = 3 # rnbp_rpf
+# model = 3 # rnbp_rpf
+model = 4 # use homotopy
 
+# Compute n-body coefficients function approximation to be used in homotopy
+if model == 4: 
+    # Define parameters for approximation methods
+    n_components_fft = 100 # not used for now since not removing high frequency components
+    num_segments_piecewise = 20
+    polynomial_degree = 3
+    
+    # Select homotopy method and extrapolation point
+    sel_homotopy = 1 # 1: FFT ; 2: Piecewise ; 3: Polynomial
+    if sel_homotopy == 1:
+        homotopy_param = n_components_fft
+    elif sel_homotopy == 2:
+        homotopy_param = num_segments_piecewise
+    elif sel_homotopy == 3:
+        homotopy_param = polynomial_degree
+    
+    coeff_3bp, coeff_nbp, f_precomputed = homotopy.get_homotopy_coefficients(sel_homotopy, homotopy_param, tau_vec, t_vec, id_primary, id_secondary, mu_bodies, naif_id_bodies, observer_id, reference_frame, epoch_t0, use_jit=False)
 
 # node indices where maneuvers are applied; numpy array within [0, Ns]
 man_index = np.array([0, 30, 60, Ns])
@@ -219,13 +238,13 @@ stm_x_ind = slice(n_x, stm_x_len+n_x)
 stm_t_ind = slice(stm_x_len+n_x, stm_x_len+n_x+stm_t_len)
 stm_const_ind = slice(stm_x_len+n_x+stm_t_len, stm_x_len+n_x+stm_t_len+stm_const_len)
 
-V0 = np.zeros(V_len);
+V0 = np.zeros(V_len)
 V0[stm_x_ind] = np.identity(n_x).flatten()
  
-x_stm = np.zeros((N,n_x));
-stm_x = np.zeros((Ns,n_x*n_x));
-stm_t = np.zeros((Ns,stm_t_len));
-stm_const = np.zeros((Ns,stm_const_len));
+x_stm = np.zeros((N,n_x))
+stm_x = np.zeros((Ns,n_x*n_x))
+stm_t = np.zeros((Ns,stm_t_len))
+stm_const = np.zeros((Ns,stm_const_len))
 
 if free_tf == 1:
     time = np.linspace(0.0, 1.0, N)
@@ -278,6 +297,13 @@ auxdata["epoch_t0"] = epoch_t0
 auxdata["tau_vec"] = tau_vec
 auxdata["t_vec"] = t_vec
 
+if model == 4:
+    homot_param = 1.0 # Homotopy parameter (0 <= eps <= 1)
+    auxdata['coeff_3bp'] = coeff_3bp
+    auxdata['coeff_nbp'] = coeff_nbp
+    auxdata['f_precomputed'] = f_precomputed
+    auxdata['homot_param'] = homot_param
+    auxdata['sel_homotopy'] = sel_homotopy
 
 verbose_solver = False
 
@@ -308,6 +334,10 @@ tmp_solution['time'] = deepcopy(time)
 nonlin_con_violation_guess, nonlin_max_con_violation_guess = scp_core.calc_nonlinear_cost(time, state_guess, control_guess, p_guess, auxdata)
 nonlin_cost_old = factor_nonlin * nonlin_con_violation_guess
 # nonlin_cost_old = 100
+
+
+
+
 
 
 iterations = 0

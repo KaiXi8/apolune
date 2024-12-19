@@ -223,6 +223,44 @@ def jac_grad_omega(rho, pos_bodies, b, C, k, mu_adim):
     return dyn_utils.compute_jac_grad_omega(rho, rho_p, mu_adim)
     
 
+def compute_coeffs(tau, id_primary, id_secondary, mu_bodies_dim, naif_id_bodies, observer_id, reference_frame, epoch_t0, tau_vec, t_vec):
+    mu_p = mu_bodies_dim[id_primary]
+    mu_s = mu_bodies_dim[id_secondary]
+    
+    epoch_time = compute_epoch_time(tau, tau_vec, t_vec, epoch_t0)
+    
+    state_bodies = get_body_states(epoch_time, naif_id_bodies, observer_id, reference_frame)
+    
+    pos_bodies = state_bodies[:,0:3] # [km]
+    vel_bodies = state_bodies[:,3:6] # [km/s]
+
+    acc_p_s, jerk_p_s, h, h1d, b, b2d, k, k1d, k2d, C = \
+        frame_rnbprpf_coeff(id_primary, id_secondary, pos_bodies, vel_bodies, mu_bodies_dim)
+ 
+    distance = k
+    
+    tau_prime = compute_tau_prime(distance, mu_p, mu_s)
+    tau_prime_squared = tau_prime**2
+ 
+    distance_prime = k1d
+    distance_double_prime = k2d
+         
+    b_123 = - C.T @ b2d / (tau_prime_squared * distance)
+    
+    b1, b2, b3 = b_123
+    b4 = - distance_prime / (2*tau_prime*distance)
+    b5 = 2*h / (tau_prime*distance**2)
+    b6 = 2*distance / (tau_prime*h) * np.dot(acc_p_s, C[:,2])
+    b7 = -distance_double_prime / (tau_prime_squared*distance) + h**2 / (tau_prime_squared*distance**4)
+    b8 = -1 / (tau_prime_squared*distance) * np.dot(acc_p_s, C[:,2])
+    b9 = h1d / (tau_prime_squared*distance**2)
+    b10 = -distance_double_prime / (tau_prime_squared*distance) + h**2 / (tau_prime_squared*distance**4) + distance**2 / (tau_prime_squared * h**2) * (np.dot(acc_p_s, C[:,2]))**2
+    b11 = (3*h*distance_prime - 2*distance*h1d ) * np.dot(acc_p_s, C[:,2]) / (tau_prime_squared * h**2) + distance * np.dot(jerk_p_s, C[:,2]) / (tau_prime_squared * h)
+    b12 = -distance_double_prime / (tau_prime_squared*distance) +  distance**2 / (tau_prime_squared * h**2) * (np.dot(acc_p_s, C[:,2]))**2
+    b13 = (mu_p + mu_s) / (distance**3 * tau_prime_squared)
+      
+    
+    return np.array([b1, b2, b3, b4, b5, b6, b7, b8, b9, b10, b11, b12, b13])
 
 
 def compute_coeff_grad(tau, state, id_primary, id_secondary, mu_bodies_dim, naif_id_bodies, observer_id, reference_frame, epoch_t0, tau_vec, t_vec):
@@ -270,7 +308,29 @@ def compute_coeff_grad(tau, state, id_primary, id_secondary, mu_bodies_dim, naif
     
     return np.array([b1, b2, b3, b4, b5, b6, b7, b8, b9, b10, b11, b12, b13]), grad_om_adim
 
+def compute_grad(tau, state, id_primary, id_secondary, mu_bodies_dim, naif_id_bodies, observer_id, reference_frame, epoch_t0, tau_vec, t_vec):
 
+    rho = state[0:3] # [adim]
+    eta = state[3:6] # [adim]
+    
+    mu_p = mu_bodies_dim[id_primary]
+    mu_s = mu_bodies_dim[id_secondary]
+    
+    epoch_time = compute_epoch_time(tau, tau_vec, t_vec, epoch_t0)
+    
+    state_bodies = get_body_states(epoch_time, naif_id_bodies, observer_id, reference_frame)
+    
+    pos_bodies = state_bodies[:,0:3] # [km]
+    vel_bodies = state_bodies[:,3:6] # [km/s]
+
+    acc_p_s, jerk_p_s, h, h1d, b, b2d, k, k1d, k2d, C = \
+        frame_rnbprpf_coeff(id_primary, id_secondary, pos_bodies, vel_bodies, mu_bodies_dim)
+    
+        
+    mu_adim = mu_bodies_dim / (mu_p + mu_s)
+    grad_om_adim = grad_omega(rho, pos_bodies, b, C, k, mu_adim)
+    
+    return grad_om_adim
 
 def compute_coeff_jac_grad(tau, state, id_primary, id_secondary, mu_bodies_dim, naif_id_bodies, observer_id, reference_frame, epoch_t0, tau_vec, t_vec):
 
@@ -317,3 +377,36 @@ def compute_coeff_jac_grad(tau, state, id_primary, id_secondary, mu_bodies_dim, 
     
     
     return np.array([b1, b2, b3, b4, b5, b6, b7, b8, b9, b10, b11, b12, b13]), jac_grad_om_adim
+
+def compute_jac_grad(tau, state, id_primary, id_secondary, mu_bodies_dim, naif_id_bodies, observer_id, reference_frame, epoch_t0, tau_vec, t_vec):
+
+    rho = state[0:3] # [adim]
+    eta = state[3:6] # [adim]
+    
+    mu_p = mu_bodies_dim[id_primary]
+    mu_s = mu_bodies_dim[id_secondary]
+    
+    epoch_time = compute_epoch_time(tau, tau_vec, t_vec, epoch_t0)
+    
+    state_bodies = get_body_states(epoch_time, naif_id_bodies, observer_id, reference_frame)
+    
+    pos_bodies = state_bodies[:,0:3] # [km]
+    vel_bodies = state_bodies[:,3:6] # [km/s]
+
+    acc_p_s, jerk_p_s, h, h1d, b, b2d, k, k1d, k2d, C = \
+        frame_rnbprpf_coeff(id_primary, id_secondary, pos_bodies, vel_bodies, mu_bodies_dim)
+ 
+    distance = k
+    
+    tau_prime = compute_tau_prime(distance, mu_p, mu_s)
+    tau_prime_squared = tau_prime**2
+ 
+    distance_prime = k1d
+    distance_double_prime = k2d
+        
+    
+    mu_adim = mu_bodies_dim / (mu_p + mu_s)
+    jac_grad_om_adim = jac_grad_omega(rho, pos_bodies, b, C, k, mu_adim)
+    
+    
+    return jac_grad_om_adim
