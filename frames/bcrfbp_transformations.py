@@ -139,3 +139,48 @@ def inertialEphemerisToSynodic(t_inertial, state_inertial, input_dict, full_mode
     state_synodic = rnbp.inertialToSynodic(t_inertial, state_inertial, input_dict_bcrfbp)
 
     return state_synodic
+
+
+
+
+
+def get_transformation_matrix_emToSunB1(moon_angle, om_em):
+    cost = np.cos(moon_angle)
+    sint = np.sin(moon_angle)
+    R = np.array([
+        [cost, sint, 0.0],
+        [-sint, cost, 0.0],
+        0.0, 0.0, 1.0]
+        ])
+    Rdot = om_em * np.array([
+        [-sint, cost, 0.0],
+        [-cost, -sint, 0.0],
+        0.0, 0.0, 0.0]
+        ])
+
+    return R, Rdot
+    
+    
+
+def sunB1ToEarthMoon(t_syn, state_sb1, aux):
+    mu_s = aux['param']['mu_s']
+    mu = aux['param']['mu']
+    om_sun = aux['param']['om_sun']
+    sun_angle_t0 = aux['param']['sun_angle_t0']
+    a_sun = aux['param']['a_sun']
+    
+    sun_angle = om_sun * t_syn + sun_angle_t0
+    moon_angle = np.pi - sun_angle
+    
+    om_em_adim = np.abs(om_sun) / (1 - np.abs(om_sun))
+    
+    R, Rdot = get_transformation_matrix_emToSunB1(moon_angle, om_em_adim)
+    
+    pos_sb1 = state_sb1[:3]
+    vel_sb1 = state_sb1[3:6]
+    
+    pos_em = a_sun * ( pos_sb1 - np.array([1-1/(mu_s + 1), 0, 0]) ) @ R.T
+    vel_em = np.sqrt((mu_s+1)/a_sun) * ( vel_sb1 @ R + pos_sb1 @ Rdot.T )
+    
+    return np.concatenate((pos_em, vel_em))
+    

@@ -116,14 +116,26 @@ def frame_rnbprpf_transform(id_primary, id_secondary, pos_bodies, vel_bodies, nu
 """
 def inertialToSynodic(time, state_inertial, rnbprpf_dict):
 
-    et0 = rnbprpf_dict["et0"]
+    et0 = rnbprpf_dict["epoch_t0"]
     naif_id_bodies = rnbprpf_dict["naif_id_bodies"]
     mu_bodies = rnbprpf_dict["mu_bodies"]
     id_primary = rnbprpf_dict["id_primary"]
     id_secondary = rnbprpf_dict["id_secondary"]
-    inertial_frame = rnbprpf_dict["inertial_frame"]
-    abcorr_flag = rnbprpf_dict["abcorr_flag"]
-    origin_frame = rnbprpf_dict["origin_frame"]
+
+    try:
+        abcorr_flag = rnbprpf_dict["abcorr_flag"]
+    except:
+        abcorr_flag = "None"
+        
+    try:
+        origin_frame = rnbprpf_dict["observer_id"]
+    except:
+        origin_frame = rnbprpf_dict["origin_frame"]
+        
+    try:
+        inertial_frame = rnbprpf_dict["reference_frame"]
+    except:
+        inertial_frame = rnbprpf_dict["inertial_frame"]
     
     time = np.atleast_1d(time)  # Ensures time is at least a 1D array
     state_inertial = np.atleast_2d(state_inertial)  # Ensures state is at least a 2D array
@@ -191,16 +203,28 @@ def inertialToSynodic(time, state_inertial, rnbprpf_dict):
 """
 def synodicToInertial(tau, state_synodic, rnbprpf_dict):
 
-    et0 = rnbprpf_dict["et0"]
+    et0 = rnbprpf_dict["epoch_t0"]
     naif_id_bodies = rnbprpf_dict["naif_id_bodies"]
     mu_bodies = rnbprpf_dict["mu_bodies"]
     id_primary = rnbprpf_dict["id_primary"]
     id_secondary = rnbprpf_dict["id_secondary"]
-    inertial_frame = rnbprpf_dict["inertial_frame"]
-    abcorr_flag = rnbprpf_dict["abcorr_flag"]
-    origin_frame = rnbprpf_dict["origin_frame"]
     tau_vec = rnbprpf_dict["tau_vec"]
     t_vec = rnbprpf_dict["t_vec"]
+    
+    try:
+        abcorr_flag = rnbprpf_dict["abcorr_flag"]
+    except:
+        abcorr_flag = "None"
+        
+    try:
+        origin_frame = rnbprpf_dict["observer_id"]
+    except:
+        origin_frame = rnbprpf_dict["origin_frame"]
+        
+    try:
+        inertial_frame = rnbprpf_dict["reference_frame"]
+    except:
+        inertial_frame = rnbprpf_dict["inertial_frame"]
     
     tau = np.atleast_1d(tau)  # Ensures time is at least a 1D array
     state_synodic = np.atleast_2d(state_synodic)  # Ensures state is at least a 2D array
