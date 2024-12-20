@@ -220,6 +220,7 @@ def solve(guess_dict, scp_data, tr_dict, auxdata):
     end_time = tm.perf_counter()
     print("total cpu time: ", end_time - start_time)
     print("cpu time per iteration: ", (end_time - start_time) / iterations)
-     
+    
+    solution_data['converged_flag'] = converged_flag
     return solution_data
 
