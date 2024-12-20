@@ -42,7 +42,7 @@ def dynamics(tau, state, control, p, auxdata):
             b = np.zeros(13)
             for i1 in range(len(auxdata['coeff_3bp'])):
                 b[i1] = eval_homotopy_at_point( auxdata['sel_homotopy'], auxdata['homot_param'], auxdata["tau_vec"], tau, auxdata['coeff_3bp'][i1], auxdata['f_precomputed'][i1] )
-           grad_om_adim = rnbp_rpf.compute_grad(tau, state, id_primary, id_secondary, mu_bodies_dim, naif_id_bodies, observer_id, reference_frame, epoch_t0, tau_vec, t_vec) #compute grad without computing b1,...
+            grad_om_adim = rnbp_rpf.compute_grad(tau, state, id_primary, id_secondary, mu_bodies_dim, naif_id_bodies, observer_id, reference_frame, epoch_t0, tau_vec, t_vec) #compute grad without computing b1,...
         
     return dynamics_coeff(state, b, grad_om_adim)
 

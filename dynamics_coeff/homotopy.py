@@ -1,5 +1,5 @@
 import numpy as np
-from numba import njit
+from numba import njit, jit, prange
 from numpy.fft import fft, fftfreq, ifft
 from scipy.interpolate import interp1d
 from dynamics_coeff.rnbp_rpf_dynamics_nonuniform_jit import compute_coeffs as rnbp_jit_coeffs
@@ -49,23 +49,48 @@ def general_homotopy(t, x_data, y_data, method, param, y_data_3bp):
 
     return (1 - t) * y_data_3bp + t * y_approx
 
+
+
+@jit('float64[::1](int64, float64, float64[::1], float64, float64[:,::1], float64[:,::1])', nopython=True, nogil=True, fastmath=True)
 def eval_homotopy_at_point(sel_homotopy, homot_param, x_data, x_point, y_data_3bp, f_precomputed): 
     """
     Efficiently evaluates the homotopy at a specific x_data point.
     """
-    y_3bp_at_point = np.interp(x_point, x_data, y_data_3bp)
-   
-    if sel_homotopy == 1: # fft
-        y_approx_at_point = np.interp(x_point % (x_data[-1] - x_data[0]), x_data, f_precomputed)
-    elif sel_homotopy == 2: # piecewise
-        y_approx_at_point = f_precomputed(x_point)
-    elif sel_homotopy == 3: # polynomial
-        coefficients = f_precomputed
-        y_approx_at_point = np.polyval(coefficients, x_point)
-    else:
-        raise ValueError("Invalid method.")
+    
+    b = np.zeros(13)
+    for i1 in prange(13):
+        y_3bp_at_point = np.interp(x_point, x_data, y_data_3bp[i1])
+        y_approx_at_point = np.interp(x_point, x_data, f_precomputed[i1])
+        b[i1] = (1 - homot_param) * y_3bp_at_point + homot_param * y_approx_at_point     
+    
+    return b
 
-    return (1 - homot_param) * y_3bp_at_point + homot_param * y_approx_at_point 
+
+
+
+# @jit('float64(int64, float64, float64[::1], float64, float64[::1], float64[::1])', nopython=True, nogil=True, fastmath=True)
+# def eval_homotopy_at_point(sel_homotopy, homot_param, x_data, x_point, y_data_3bp, f_precomputed): 
+#     """
+#     Efficiently evaluates the homotopy at a specific x_data point.
+#     """
+#     y_3bp_at_point = np.interp(x_point, x_data, y_data_3bp)
+#     
+#     y_3bp_at_point = np.interp(x_point, x_data, y_data_3bp)
+#     y_approx_at_point = np.interp(x_point, x_data, f_precomputed)
+#    
+#    #  if sel_homotopy == 1: # fft
+# #         y_approx_at_point = np.interp(x_point % (x_data[-1] - x_data[0]), x_data, f_precomputed)
+# #     elif sel_homotopy == 2: # piecewise
+# #         y_approx_at_point = f_precomputed(x_point)
+# #     elif sel_homotopy == 3: # polynomial
+# #         coefficients = f_precomputed
+# #         y_approx_at_point = np.polyval(coefficients, x_point)
+# #     else:
+# #         raise ValueError("Invalid method.")
+# 
+#     res = (1 - homot_param) * y_3bp_at_point + homot_param * y_approx_at_point 
+#     
+#     return res
 
 
 def get_homotopy_coefficients(sel_homotopy, homotopy_param, tau_vec, t_vec, id_primary, id_secondary, mu_bodies, naif_id_bodies, observer_id, reference_frame, epoch_t0, use_jit=False):
