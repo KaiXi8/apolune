@@ -136,7 +136,7 @@ def get_homotopy_coefficients(sel_homotopy, homotopy_param, tau_vec, t_vec, id_p
             segment_indices = np.round(np.linspace(0, len(tau_vec) - 1, homotopy_param + 1)).astype(int)
             x_segments = tau_vec[segment_indices]
             y_segments = coeff_nbp[i][segment_indices]
-            f_precomputed = interp1d(x_segments, y_segments)
+            f_precomputed.append(interp1d(x_segments, y_segments))
 
         elif sel_homotopy == 3: # Precompute polynomial coefficients
             y_approx.append( polynomial_approx_function(tau_vec, coeff_nbp[i], homotopy_param) )
