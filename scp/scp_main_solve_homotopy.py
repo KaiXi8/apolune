@@ -32,12 +32,6 @@ def initial_guess(auxdata):
     
     time = auxdata['param']['time_vec']
     x0 = auxdata['param']['x0']
-#     x0[3:6] *= 1.001 # converges
-#     x0[3:6] *= 1.004 # failed
-#     x0[3:6] *= 1.002 # converges
-
-#     x0[3:6] *= 1.002445 # converges for crtbp when propagating nb dynamics
-#     x0 *= 1.000005 # 
     
     
     if auxdata['problem']['free_tf'] == 1:
@@ -57,12 +51,18 @@ def initial_guess(auxdata):
 
 
 mu_earth_moon = 1.21506683e-2
+mu = mu_earth_moon
 LU = 3.84405000e5 # km
 TU = 4.34811305 # days
 VU = 1.02323281 # km/s
 
 # crtbp
-mu = mu_earth_moon
+data = np.load('guess_generation/threebody_guesses_3.000728.npy', allow_pickle=True)
+index = 0
+#LU = 1.495978706136889e+08 # 1 AU
+#mu = 3.003480593992993e-06
+#TU = np.sqrt(LU**3 / mu)
+#VU = LU / TU # [km/s]
 
 # bcrfbp
 mu_sun = 3.28900541e5 # adim
@@ -116,6 +116,7 @@ MU = mu_bodies[id_primary] + mu_bodies[id_secondary]
 
 # epoch_t0 = spice.str2et('23 September 2022 00:00:00 TDB')
 epoch_t0 = spice.str2et('1 June 2024 00:00:00 TDB')
+#epoch_t0 = data[index]['start_epoch']
 reference_frame = "j2000"
 reference_frame_encoded = rnbp_utils.frame_encoder("J2000")
 mu_p = mu_bodies[id_primary]
@@ -142,9 +143,9 @@ Ns = N - 1
 # NOTE: i only implemented the case for free_tf = 0 so far
 free_tf = 0
 
-# model = 1 # crtbp
-# model = 2 # bcrfbp
-# model = 3 # rnbp_rpf
+#model = 1 # crtbp
+#model = 2 # bcrfbp
+#model = 3 # rnbp_rpf
 model = 4 # rnbp_rpf with fft, interpolation, and homotopy
 
 if model == 4: 
@@ -185,6 +186,12 @@ xf = np.array([1.11559, -0.056398, 0, -0.008555, 0.157211, 0]) # adim
 t0 = 0.0
 tf = 12.34 / TU * 1.91 # time of flight
 # tf = 12.34 / TU * 1.95 # time of flight
+
+#x0 = data[index]['x0']
+#x0[3] *= 0.9999; x0[4] *= 0.9999; x0[5] *= 0.9999
+#xf = data[index]['xf'] 
+#t0 = 0.0
+#tf = data[index]['tf']
 
 # bounds for states, controls, and dv per maneuver
 states_lower = -10.0 * np.ones(n_x)
@@ -326,7 +333,7 @@ if model == 4:
     auxdata['coeff_3bp'] = coeff_3bp
     auxdata['coeff_nbp'] = coeff_nbp
     auxdata['f_precomputed'] = f_precomputed
-    auxdata['homot_param'] = 0.0
+    auxdata['homot_param'] = homot_param
     auxdata['sel_homotopy'] = sel_homotopy
 
 # print("coeff_3bp.shape: ", coeff_3bp.shape)
@@ -404,21 +411,33 @@ print("control_cvx.value: ", control_sol)
 print("dv's: ", dv_array)
 print("total dv: ", np.sum(dv_array))
 
+np.save('solution_state', state_sol)
+np.save('guess_state', state_guess)
 
 plt.figure()
 ax = plt.axes(projection ='3d')
 ax.plot(state_sol[:,0], state_sol[:,1], state_sol[:,2], label='transfer')
 ax.plot(state_guess[:,0], state_guess[:,1], state_guess[:,2], label='guess')
+ax.plot(xf[0], xf[1], xf[2], 'bo')
+ax.plot(x0[0], x0[1], x0[2], 'go')
 ax.set_xlabel("x")
 ax.set_ylabel("y")
 ax.set_zlabel("z")
+ax.axis('equal')
 plt.legend()
 
 fig, ax = plt.subplots()
+circle = plt.Circle((1-mu, 0), 384400 / LU, color='k', fill=False)
+ax.add_artist(circle)
 ax.plot(state_sol[:,0], state_sol[:,1], label='transfer')
 ax.plot(state_guess[:,0], state_guess[:,1], label='guess')
+ax.plot(xf[0], xf[1], 'bo')
+ax.plot(x0[0], x0[1], 'go')
+ax.set_xlim([1-mu -5E+5 / LU, 1-mu + 5E+5/ LU])
+ax.set_ylim([-5E+5 / LU, 5E+5 / LU])
 ax.set_xlabel("x")
 ax.set_ylabel("y")
+ax.axis('equal')
 
 plt.legend()
 plt.show()

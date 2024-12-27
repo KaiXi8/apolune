@@ -62,7 +62,10 @@ TU = 4.34811305 # days
 VU = 1.02323281 # km/s
 
 # crtbp
-mu = mu_earth_moon
+LU = 1.495978706136889e+08 # 1 AU
+mu = 3.003480593992993e-06
+TU = np.sqrt(LU**3 / mu)
+VU = LU / TU # [km/s]
 
 # bcrfbp
 mu_sun = 3.28900541e5 # adim
@@ -180,11 +183,18 @@ man_index = np.array([0, 50, Ns])
 # t0 = 0.0
 # tf = 6.9083604301186052e-01
 
-x0 = np.array([0.870183, -0.059444, 0, -0.010471, -0.175136, 0]) # adim
-xf = np.array([1.11559, -0.056398, 0, -0.008555, 0.157211, 0]) # adim
+#x0 = np.array([0.870183, -0.059444, 0, -0.010471, -0.175136, 0]) # adim
+#xf = np.array([1.11559, -0.056398, 0, -0.008555, 0.157211, 0]) # adim
+#t0 = 0.0
+#tf = 12.34 / TU * 1.91 # time of flight
+## tf = 12.34 / TU * 1.95 # time of flight
+
+data = np.load('guess_generation/threebody_guesses_3.00066.npy', allow_pickle=True)
+
+x0 = data[0]['x0']
+xf = data[0]['xf'] 
 t0 = 0.0
-tf = 12.34 / TU * 1.91 # time of flight
-# tf = 12.34 / TU * 1.95 # time of flight
+tf = data[0]['tf']
 
 # bounds for states, controls, and dv per maneuver
 states_lower = -10.0 * np.ones(n_x)

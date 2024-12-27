@@ -169,7 +169,7 @@ def calc_nonlinear_cost(tvec, state, control, p, auxdata):
     x0 = auxdata['param']['x0']
     man_index = auxdata['param']['man_index']
     if man_index[0] == 0:
-        dx0 = state[0] - np.concat((np.zeros(3), control[0])) - x0
+        dx0 = state[0] - np.concatenate((np.zeros(3), control[0])) - x0
     else:
         dx0 = state[0] - x0
     violation_x0 = np.linalg.norm(dx0, 1)
@@ -201,7 +201,7 @@ def calc_linear_cost(tvec, state, control, p, defect_constraints, auxdata):
     x0 = auxdata['param']['x0']
     man_index = auxdata['param']['man_index']
     if man_index[0] == 0:
-        dx0 = state[0] - np.concat((np.zeros(3), control[0])) - x0
+        dx0 = state[0] - np.concatenate((np.zeros(3), control[0])) - x0
     else:
         dx0 = state[0] - x0
     violation_x0 = np.linalg.norm(dx0, 1)
@@ -252,7 +252,7 @@ def calc_linear_cost_v02(tvec, state, control, p, discretizationData, auxdata):
 
     x0 = auxdata['param']['x0']
     if man_index[0] == 0:
-        dx0 = state[0] - np.concat((np.zeros(3), control[0])) - x0
+        dx0 = state[0] - np.concatenate((np.zeros(3), control[0])) - x0
     else:
         dx0 = state[0] - x0
     violation_x0 = np.linalg.norm(dx0, 1)
@@ -292,8 +292,10 @@ def check_optimality(delta_cost, tol):
 
 def check_convergence(delta_state_norm, feasible_flag, optimal_flag, tol):
     converged_flag = 0
-    
+    print(f'Optimal?: {optimal_flag}')
+    print(f'Feasible?: {feasible_flag}')
     if feasible_flag == 1 and optimal_flag == 1:
+        
         converged_flag = 1
     elif delta_state_norm <= tol:
         converged_flag = 2
