@@ -2,7 +2,7 @@ import sys
 import os
 
 # Construct the full path to the directory containing the package
-project_path = '/Users/hofmannc/git/apolune'
+project_path = '/workspace/apolune'
 
 # Add the directory to sys.path
 sys.path.append(project_path)
@@ -322,11 +322,11 @@ auxdata["t_vec"] = t_vec
 
 #for homotopy
 if model == 4:
-    homot_param = 1.0 # Homotopy parameter (0 <= eps <= 1), would update this with a function in the future
+    homot_param = 0 # Homotopy parameter (0 <= eps <= 1), would update this with a function in the future
     auxdata['coeff_3bp'] = coeff_3bp
     auxdata['coeff_nbp'] = coeff_nbp
     auxdata['f_precomputed'] = f_precomputed
-    auxdata['homot_param'] = homot_param
+    auxdata['homot_param'] = 0.0
     auxdata['sel_homotopy'] = sel_homotopy
 
 # print("coeff_3bp.shape: ", coeff_3bp.shape)
@@ -363,13 +363,13 @@ scp_data['feasibility_tol'] = 1e-7
 scp_data['optimality_tol'] = 1e-4
 scp_data['step_tol'] = 1e-8
 
-scp_data['max_iterations'] = 150
+scp_data['max_iterations'] = 1000
 scp_data['factor_nonlin'] = 10.0
 scp_data['factor_lin'] = 10.0
 
 scp_data['objective_old'] = 1e-3
 
-homotopic_param_step_size = 0.2
+homotopic_param_step_size = 0.1
 converged_flag = 0
 
 # basic code for homotopic approach
@@ -377,13 +377,16 @@ while converged_flag != 1:
     solution_data = scp_solve.solve(guess_dict, scp_data, tr_dict, auxdata)
     
     if solution_data['converged_flag'] == 1: # found an optimal solution -> increase homotopic parameter
-        auxdata['homot_param'] += homotopic_param_step_size
+        if(auxdata['homot_param'] >= 1):
+            print("Reached solution in nbp")
+            break
+        auxdata['homot_param'] = np.min([auxdata['homot_param'] + homotopic_param_step_size, 1.0])
+        
         guess_dict['state'] = deepcopy(solution_data['state'])
         guess_dict['control'] = deepcopy(solution_data['control'])
         guess_dict['p'] = deepcopy(solution_data['p'])
         guess_dict['time'] = deepcopy(solution_data['time'])
-        
-        scp_data['objective_old'] = np.sum(guess_dict['control']**2, axis=1) # compute value of objective function
+        scp_data['objective_old'] =  solution_data['objective_new'] # np.sum(guess_dict['control']**2, axis=1) # compute value of objective function
         
         # potentially update trust-region radius:
         # tr_dict['radius'] = 50.0 

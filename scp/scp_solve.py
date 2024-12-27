@@ -138,6 +138,7 @@ def solve(guess_dict, scp_data, tr_dict, auxdata):
         obj = 0.0
         for k in range(n_man):
             obj += cvx.sum_squares(control_cvx[k])
+
         
         objective = cvx.Minimize(obj + factor_lin * cvx.norm(virtual_control_cvx, 1))
     
@@ -160,12 +161,15 @@ def solve(guess_dict, scp_data, tr_dict, auxdata):
     
         predicted_decrease = nonlin_cost_old - lin_cost
         actual_decrease = nonlin_cost_old - nonlin_cost
+        print(f'obj_old: {objective_old}')
+        print(f'obj_val: {objective.value}')
         delta_cost = np.abs((objective_old - objective.value) / objective_old)
         
         delta_state_norm = np.linalg.norm(tmp_solution['state'].flatten() - solution_data['state'].flatten()) / np.linalg.norm(solution_data['state'].flatten())
         
         # check feasibility, optimality, and if converged
         feasible_flag = scp_core.check_feasibility(nonlin_max_con_violation, lin_max_con_violation, feasibility_tol)
+        print(f'homot_param: {auxdata["homot_param"]}')
         optimal_flag = scp_core.check_optimality(delta_cost, optimality_tol)
         converged_flag = scp_core.check_convergence(delta_state_norm, feasible_flag, optimal_flag, step_tol)
         
@@ -222,5 +226,6 @@ def solve(guess_dict, scp_data, tr_dict, auxdata):
     print("cpu time per iteration: ", (end_time - start_time) / iterations)
     
     solution_data['converged_flag'] = converged_flag
+    solution_data['objective_new'] = objective.value
     return solution_data
 
