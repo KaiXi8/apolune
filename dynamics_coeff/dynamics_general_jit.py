@@ -205,6 +205,9 @@ def jacobian(tau, state, control, p, auxdata):
 #                 b[i1] = eval_homotopy_at_point( auxdata['sel_homotopy'], auxdata['homot_param'], auxdata["tau_vec"], tau, auxdata['coeff_3bp'][i1], auxdata['f_precomputed'][i1] )
             b = eval_homotopy_at_point( auxdata['sel_homotopy'], auxdata['homot_param'], auxdata["tau_vec"], tau, auxdata['coeff_3bp'], auxdata['f_precomputed'] )
             jac_grad_om_adim = rnbp_rpf.compute_jac_grad(tau, state, id_primary, id_secondary, mu_bodies_dim, naif_id_bodies, observer_id, reference_frame, epoch_t0, tau_vec, t_vec) #compute grad without computing b1,...
+            if auxdata['homot_param'] < 1: #mix grads for homotopy
+                jac_grad_om_adim3bp = crtbp.jac_grad_omega(rho, auxdata['mu_crtbp'])
+                jac_grad_om_adim = auxdata['homot_param'] * jac_grad_om_adim + (1 - auxdata['homot_param']) * jac_grad_om_adim3bp
     
     return jacobian_coeff(b, jac_grad_om_adim)
 
