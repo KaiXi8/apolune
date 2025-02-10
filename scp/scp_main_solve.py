@@ -36,7 +36,7 @@ def initial_guess(auxdata):
 #     x0[3:6] *= 1.004 # failed
 #     x0[3:6] *= 1.002 # converges
 
-#     x0[3:6] *= 1.002445 # converges for crtbp when propagating nb dynamics
+    x0[3:6] *= 1.002445 # converges for crtbp when propagating nb dynamics
 #     x0 *= 1.000005 # 
     
     
@@ -48,8 +48,8 @@ def initial_guess(auxdata):
         p_guess = np.empty(0)
     
     u_guess = np.zeros((n_man, n_u))
-    x_guess = propagation.propagate(crtbp.dynamics, x0, u_guess, p_guess, time, auxdata)
-#     x_guess = propagation.propagate(dyn_coeff.dynamics, x0, u_guess, p_guess, time, auxdata)
+#     x_guess = propagation.propagate(crtbp.dynamics, x0, u_guess, p_guess, time, auxdata)
+    x_guess = propagation.propagate(dyn_coeff.dynamics, x0, u_guess, p_guess, time, auxdata)
     
 
     return x_guess, u_guess, p_guess
@@ -144,8 +144,8 @@ free_tf = 0
 
 # model = 1 # crtbp
 # model = 2 # bcrfbp
-# model = 3 # rnbp_rpf
-model = 4 # rnbp_rpf with fft, interpolation, and homotopy
+model = 3 # rnbp_rpf
+# model = 4 # rnbp_rpf with fft, interpolation, and homotopy
 
 if model == 4: 
     # Define parameters for approximation methods
@@ -363,7 +363,7 @@ scp_data['feasibility_tol'] = 1e-7
 scp_data['optimality_tol'] = 1e-4
 scp_data['step_tol'] = 1e-8
 
-scp_data['max_iterations'] = 150
+scp_data['max_iterations'] = 250
 scp_data['factor_nonlin'] = 10.0
 scp_data['factor_lin'] = 10.0
 
