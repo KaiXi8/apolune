@@ -2,21 +2,19 @@ import numpy as np
 from copy import deepcopy
 import cvxpy as cvx
 import time as tm
-import scp.scp_core as scp_core
+import scp.scp_core_low_thrust as scp_core
 
 
 def solve(guess_dict, scp_data, tr_dict, auxdata):
+    model = auxdata['problem']['model']  
     
     N = auxdata['problem']['N']   
     n_x = auxdata['problem']['n_x']   
     n_u = auxdata['problem']['n_u']   
     n_p = auxdata['problem']['n_p']   
     
-    n_man = auxdata['param']['n_man']   
-    man_index = auxdata['param']['man_index']   
     x0 = auxdata['param']['x0']   
     xf = auxdata['param']['xf']   
-    dv_max = auxdata['param']['dv_max']   
     
     states_lower = auxdata['boundaries']['states_lower']   
     states_upper = auxdata['boundaries']['states_upper']   
@@ -50,6 +48,11 @@ def solve(guess_dict, scp_data, tr_dict, auxdata):
     
     tmp_solution['time'] = deepcopy(guess_dict['time'])
     
+    if model == 1 or model == 2: # crtbp or bcrfbp
+        Tmax = auxdata['param']['Tmax']   
+    else:
+        Tmax_vec = scp_core.get_Tmax(solution_data['time'], auxdata)
+    
     nonlin_con_violation_guess, nonlin_max_con_violation_guess = scp_core.calc_nonlinear_cost(guess_dict['time'], guess_dict['state'], guess_dict['control'], guess_dict['p'], auxdata)
     nonlin_cost_old = factor_nonlin * nonlin_con_violation_guess
     # nonlin_cost_old = 100
@@ -65,60 +68,57 @@ def solve(guess_dict, scp_data, tr_dict, auxdata):
     num_upperb_con = N * (n_x + n_u) + n_p
     num_tr_con = 1
     
-    num_con = num_defect_con + num_initial_bound_con + num_final_bound_con + num_lowerb_con + num_upperb_con + num_tr_con
-    ind_tr_con = num_con - num_tr_con - 1
+#     num_con = num_defect_con + num_initial_bound_con + num_final_bound_con + num_lowerb_con + num_upperb_con + num_tr_con
+#     ind_tr_con = num_con - num_tr_con - 1
     
     start_time = tm.perf_counter()
     while (iterations < max_iterations) and converged_flag <= 0:
         
         state_cvx = cvx.Variable((N, n_x))  
-        control_cvx = cvx.Variable((n_man, n_u)) 
+        control_cvx = cvx.Variable((N, n_u)) 
         p_cvx = cvx.Variable(1)  
-        virtual_control_cvx = cvx.Variable((N-1, n_x))  
+        virtual_control_dynamics = cvx.Variable((N-1, n_x))  
+        virtual_control_ineq = cvx.Variable(N, nonneg=True) 
     #     state_k1_lin = cvx.Variable((N-1, n_x)) 
     #     tr_radius_cvx = cvx.Parameter(nonneg=True)
     #     tr_radius_cvx.value = tr_dict['radius']
         
         constraints = []
         
-        if auxdata['problem']['free_tf'] == 1:
-            dynamics_ltv_fun = scp_core.dynamics_ltv_free_tf
+#         if auxdata['problem']['free_tf'] == 1:
+        if auxdata['discretization']['foh_flag'] == 1:
+#             dynamics_ltv_fun = scp_core.dynamics_ltv_free_tf
+            dynamics_ltv_fun = scp_core.dynamics_ltv_foh
         else:
-            dynamics_ltv_fun = scp_core.dynamics_ltv        
+            dynamics_ltv_fun = scp_core.dynamics_ltv_zoh        
                    
         discretizationData = scp_core.integrate_piecewise_ltv(dynamics_ltv_fun, auxdata['discretization'], solution_data['time'], solution_data['state'], solution_data['control'], solution_data['p'], auxdata)
         stm_x_array = discretizationData['stm_x']
+        stm_uk_array = discretizationData['stm_uk']
+        stm_uk1_array = discretizationData['stm_uk1']
         stm_t_array = discretizationData['stm_t']
         stm_const_array = discretizationData['stm_const']
         
         state_k1_lin = []
         for k in range(N-1):
     #         state_k1_lin[k] = stm_x_array[k].reshape((n_x, n_x)) @ state_cvx[k] + stm_t_array[k] * p_cvx + stm_const_array[k]
-            state_k1_lin.append(stm_x_array[k].reshape((n_x, n_x)) @ state_cvx[k] + stm_const_array[k])
-            
-        for i in range(0, n_man):
-            man_ind = man_index[i]
-            if man_ind > 0:
-                con_index = man_ind - 1
-                dv = cvx.hstack([0.0, 0.0, 0.0, control_cvx[i]])
-                state_k1_lin[con_index] = stm_x_array[con_index].reshape((n_x, n_x)) @ state_cvx[con_index] + stm_const_array[con_index] + dv
+            state_k1_lin.append(
+                stm_x_array[k].reshape((n_x, n_x)) @ state_cvx[k] + stm_uk_array[k].reshape((n_x, n_u)) @ control_cvx[k] 
+                + stm_uk1_array[k].reshape((n_x, n_u)) @ control_cvx[k+1] + stm_const_array[k]
+                )
         
         # defect constraints
         # state_k1_lin - state_cvx[1:] == 0  
         for k in range(N-1):
-            defect_con = state_k1_lin[k] - state_cvx[k+1] + virtual_control_cvx[k] == 0
+            defect_con = state_k1_lin[k] - state_cvx[k+1] + virtual_control_dynamics[k] == 0
             constraints.append(defect_con)
         
         # initial boundary conditions x[0] == x0
-        if man_index[0] == 0:
-            x0_con = state_cvx[0] - cvx.hstack([0.0, 0.0, 0.0, control_cvx[0]]) == x0
-        else:
-            x0_con = state_cvx[0] == x0
-        
+        x0_con = state_cvx[0] == x0
         constraints.append(x0_con)
         
         # final boundary conditions x[N-1] == xf
-        xf_con = state_cvx[-1] == xf
+        xf_con = state_cvx[-1, :6] == xf
         constraints.append(xf_con)
     
         # bounds
@@ -130,17 +130,23 @@ def solve(guess_dict, scp_data, tr_dict, auxdata):
         # trust region constraint
         constraints.append(cvx.norm(state_cvx - solution_data['state'], 1) <= tr_dict['radius'])
         
-        # constraint on maximum control magnitude per maneuver
-        for k in range(n_man):
-            constraints.append(cvx.norm(control_cvx[k], 2) <= dv_max)
+        # second-order cone constraint on controls
+        for k in range(N):
+            constraints.append(cvx.norm(control_cvx[k,:3], 2) <= control_cvx[k,3])
+        
+        # linearized thrust magnitude constraints
+        # rnbp_rpf with nonuniform time: store LUs and VUs for every point in time (assuming a fixed tf)
+        for k in range(N):
+            z_k = state_cvx[k,-1]
+            z_old_k = solution_data['state'][k,-1]
+            if model > 2: # rnbp_rpf
+                Tmax = Tmax_vec[k]
+            constraints.append( control_cvx[k,3] - Tmax * np.exp(-z_old_k) * (1 - z_k + z_old_k) - virtual_control_ineq[k] <= 0 )
         
         # compute objective function
-        obj = 0.0
-        for k in range(n_man):
-            obj += cvx.sum_squares(control_cvx[k])
-
+        obj = - state_cvx[-1,-1]
         
-        objective = cvx.Minimize(obj + factor_lin * cvx.norm(virtual_control_cvx, 1))
+        objective = cvx.Minimize(obj + factor_lin * cvx.norm(virtual_control_dynamics, 1) + factor_lin * cvx.sum(cvx.pos(virtual_control_ineq)))
     
     
         problem = cvx.Problem(objective, constraints)
@@ -154,7 +160,7 @@ def solve(guess_dict, scp_data, tr_dict, auxdata):
     
         # compute nonlinear and linear constraint violations
         nonlin_con_violation, nonlin_max_con_violation = scp_core.calc_nonlinear_cost(solution_data['time'], state_cvx.value, control_cvx.value, p_cvx.value, auxdata)
-        lin_con_violation, lin_max_con_violation = scp_core.calc_linear_cost(solution_data['time'], state_cvx.value, control_cvx.value, p_cvx.value, virtual_control_cvx.value, auxdata)
+        lin_con_violation, lin_max_con_violation = scp_core.calc_linear_cost(solution_data['time'], state_cvx.value, control_cvx.value, p_cvx.value, virtual_control_dynamics.value, virtual_control_ineq.value, auxdata)
     
         nonlin_cost = factor_nonlin * nonlin_con_violation
         lin_cost = factor_lin * lin_con_violation
@@ -169,7 +175,7 @@ def solve(guess_dict, scp_data, tr_dict, auxdata):
         
         # check feasibility, optimality, and if converged
         feasible_flag = scp_core.check_feasibility(nonlin_max_con_violation, lin_max_con_violation, feasibility_tol)
-#         print(f'homot_param: {auxdata["homot_param"]}')
+        # print(f'homot_param: {auxdata["homot_param"]}')
         optimal_flag = scp_core.check_optimality(delta_cost, optimality_tol)
         converged_flag = scp_core.check_convergence(delta_state_norm, feasible_flag, optimal_flag, step_tol)
         

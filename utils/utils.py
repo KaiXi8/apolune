@@ -12,3 +12,6 @@ def frame_encoder(frame):
         encoded_frame = np.asarray([ord(c) for c in ''.join(padded_frame)], dtype=np.int8)
         return encoded_frame.reshape(len(frame), max(nb_chars) + 1)
     raise Exception('frame must be a string or a tuple of strings representing valid frame names')
+
+
+    
