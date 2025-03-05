@@ -354,15 +354,6 @@ guess_dict['control'] = control_guess
 guess_dict['p'] = p_guess
 guess_dict['time'] = time
 
-# plt.figure()
-# ax = plt.axes(projection ='3d')
-# ax.plot(state_guess[:,0], state_guess[:,1], state_guess[:,2], label='guess')
-# ax.set_xlabel("x")
-# ax.set_ylabel("y")
-# ax.set_zlabel("z")
-# plt.legend()
-# plt.show()
-
 scp_data = {}
 
 scp_data['max_iterations'] = 100
@@ -374,27 +365,24 @@ scp_data['factor_nonlin'] = 10.0
 scp_data['factor_lin'] = 10.0
 scp_data['objective_old'] = 1e-3
 
-# solution_data = scp_solve.solve(guess_dict, scp_data, tr_dict, auxdata)
-# 
-# state_sol = solution_data['state']
-# control_sol = solution_data['control']
-# p_sol = np.empty(0)
-# dv_array = np.linalg.norm(control_sol, axis=1)
-# print("optimized control: ", control_sol)
-# print("dv's: ", dv_array)
-# print("total dv: ", np.sum(dv_array))
-# 
-# dv_array_guess = np.linalg.norm(control_guess, axis=1)
-# print("control initial guess: ", control_guess)
-# print("total dv of initial guess: ", np.sum(dv_array_guess))
+solution_data = scp_solve.solve(guess_dict, scp_data, tr_dict, auxdata)
 
-        
-state_sol = np.load('state_sol.npy') 
-control_sol = np.load('control_sol.npy') 
+state_sol = solution_data['state']
+control_sol = solution_data['control']
 p_sol = np.empty(0)
+dv_array = np.linalg.norm(control_sol, axis=1)
+print("optimized control: ", control_sol)
+print("dv's: ", dv_array)
+print("total dv: ", np.sum(dv_array))
 
+dv_array_guess = np.linalg.norm(control_guess, axis=1)
+print("control initial guess: ", control_guess)
+print("total dv of initial guess: ", np.sum(dv_array_guess))
+
+# propagated SCP solution
 state_prop = propagation.propagate_high_thrust(state_sol[0], control_sol, p_sol, time, auxdata)
 
+# compute violation of defect constraints (i.e., dynamics)
 defects_matrix = scp_core.compute_defects(time, state_sol, control_sol, p_sol, auxdata)
 violation_dynamics = np.linalg.norm(defects_matrix.flatten(), 1)
 print("violation_dynamics: ", violation_dynamics)
@@ -423,6 +411,28 @@ print("propagation error, adim: ", d_state[-1])
 print("max. position error, adim: ", pos_error_max)
 print("max. velocity error, adim: ", vel_error_max)
 
+
+#---
+# check previous SCP solution
+
+# compute violation of defect constraints (i.e., dynamics) for previous SCP solution
+defects_matrix_guess = scp_core.compute_defects(time, state_guess, control_guess, p_guess, auxdata)
+violation_dynamics_guess = np.linalg.norm(defects_matrix_guess.flatten(), 1)
+print("violation_dynamics_guess: ", violation_dynamics_guess)
+
+# propagated SCP solution
+state_guess_prop = propagation.propagate_high_thrust(state_guess[0], control_guess, p_guess, time, auxdata)
+
+plt.figure()
+ax_guess = plt.axes(projection ='3d')
+ax_guess.plot(state_guess[:,0], state_guess[:,1], state_guess[:,2], label='guess')
+ax_guess.plot(state_guess_prop[:,0], state_guess_prop[:,1], state_guess_prop[:,2], label='propagated')
+ax_guess.set_xlabel("x")
+ax_guess.set_ylabel("y")
+ax_guess.set_zlabel("z")
+plt.legend()
+
+#---
 
 # 
 plt.figure()
