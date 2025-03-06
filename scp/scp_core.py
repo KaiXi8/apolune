@@ -282,7 +282,7 @@ def check_feasibility(nonlin_max_con_viol, lin_max_con_viol, tol):
 
 def check_optimality(delta_cost, tol):
     optimal_flag = 0
-    
+
     if delta_cost <= tol:
         optimal_flag = 1
 
@@ -292,8 +292,7 @@ def check_optimality(delta_cost, tol):
 
 def check_convergence(delta_state_norm, feasible_flag, optimal_flag, tol):
     converged_flag = 0
-    print(f'Optimal?: {optimal_flag}')
-    print(f'Feasible?: {feasible_flag}')
+
     if feasible_flag == 1 and optimal_flag == 1:
         
         converged_flag = 1

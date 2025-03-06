@@ -1,7 +1,9 @@
 import numpy as np
 from copy import deepcopy
 import cvxpy as cvx
+import matplotlib.pyplot as plt
 import time as tm
+import pickle
 import scp_core
 
 
@@ -69,6 +71,7 @@ def solve(guess_dict, scp_data, tr_dict, auxdata):
     ind_tr_con = num_con - num_tr_con - 1
     
     start_time = tm.perf_counter()
+    iteration_data = []
     while (iterations < max_iterations) and converged_flag <= 0:
         
         state_cvx = cvx.Variable((N, n_x))  
@@ -149,6 +152,9 @@ def solve(guess_dict, scp_data, tr_dict, auxdata):
         iterations += 1
         
         tmp_solution['state'] = deepcopy(state_cvx.value)
+        #iteration_data.append(tmp_solution['state'])
+        #with open('iterations.pkl', 'wb') as f:
+        #    pickle.dump(iteration_data, f)
         tmp_solution['control'] = deepcopy(control_cvx.value)
         tmp_solution['p'] = deepcopy(p_cvx.value)
     
@@ -172,8 +178,8 @@ def solve(guess_dict, scp_data, tr_dict, auxdata):
         print(f'homot_param: {auxdata["homot_param"]}')
         optimal_flag = scp_core.check_optimality(delta_cost, optimality_tol)
         converged_flag = scp_core.check_convergence(delta_state_norm, feasible_flag, optimal_flag, step_tol)
-        
-        if predicted_decrease == 0: # converged if 0; also to avoid division by 0
+        print(f'predicted_decrease: {predicted_decrease}')
+        if predicted_decrease < 3e-5: # converged if 0; also to avoid division by 0
             converged_flag = 1
         
         if tr_dict['radius'] <= tr_dict['radius_min']:

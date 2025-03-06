@@ -57,12 +57,13 @@ TU = 4.34811305 # days
 VU = 1.02323281 # km/s
 
 # crtbp
-data = np.load('guess_generation/threebody_guesses_3.000728.npy', allow_pickle=True)
+data = np.load('guess_generation/threebody_guesses_3.00036.npy', allow_pickle=True)
 index = 0
-#LU = 1.495978706136889e+08 # 1 AU
-#mu = 3.003480593992993e-06
-#TU = np.sqrt(LU**3 / mu)
-#VU = LU / TU # [km/s]
+LU = 1.495978706136889e+08 # 1 AU
+mu = 3.003480593992993e-06
+MU = 403503.23550225975
+TU = np.sqrt(LU**3 / MU)
+VU = LU / TU # [km/s]
 
 # bcrfbp
 mu_sun = 3.28900541e5 # adim
@@ -115,8 +116,8 @@ mu_bodies = np.array([GM_mer, GM_ven, GM_ear, GM_mar, GM_jup, GM_sat, GM_ura, GM
 MU = mu_bodies[id_primary] + mu_bodies[id_secondary]
 
 # epoch_t0 = spice.str2et('23 September 2022 00:00:00 TDB')
-epoch_t0 = spice.str2et('1 June 2024 00:00:00 TDB')
-#epoch_t0 = data[index]['start_epoch']
+#epoch_t0 = spice.str2et('1 June 2024 00:00:00 TDB')
+epoch_t0 = data[index]['start_epoch'] # Such that the moon is at the position of xf at tf
 reference_frame = "j2000"
 reference_frame_encoded = rnbp_utils.frame_encoder("J2000")
 mu_p = mu_bodies[id_primary]
@@ -172,8 +173,8 @@ if model == 4:
 
 # node indices where maneuvers are applied; numpy array within [0, Ns]
 # man_index = np.array([0, 30, 60, Ns])
-man_index = np.array([0, 50, Ns])
-# man_index = np.array([0, Ns])
+#man_index = np.array([0, 50, Ns])
+man_index = np.array([0, Ns])
 
 # initial and final boundary conditions
 # x0 = np.array([8.2338046140454002e-01, 0, 1.3886061447073000e-02, 0, 1.2947638542136800e-01, 0]) # adim
@@ -181,17 +182,18 @@ man_index = np.array([0, 50, Ns])
 # t0 = 0.0
 # tf = 6.9083604301186052e-01
 
-x0 = np.array([0.870183, -0.059444, 0, -0.010471, -0.175136, 0]) # adim
-xf = np.array([1.11559, -0.056398, 0, -0.008555, 0.157211, 0]) # adim
-t0 = 0.0
-tf = 12.34 / TU * 1.91 # time of flight
-# tf = 12.34 / TU * 1.95 # time of flight
 
-#x0 = data[index]['x0']
-#x0[3] *= 0.9999; x0[4] *= 0.9999; x0[5] *= 0.9999
-#xf = data[index]['xf'] 
+# Working Example for Homotopy
+#x0 = np.array([0.870183, -0.059444, 0, -0.010471, -0.175136, 0]) # adim
+#xf = np.array([1.11559, -0.056398, 0, -0.008555, 0.157211, 0]) # adim
 #t0 = 0.0
-#tf = data[index]['tf']
+#tf = 12.34 / TU * 1.91 # time of flight
+
+x0 = data[index]['x0']
+xf = data[index]['xf'] 
+t0 = 0.0
+tf = data[index]['tf']
+x0[3] *= 0.9999; x0[4] *= 0.9999; x0[5] *= 0.9999
 
 # bounds for states, controls, and dv per maneuver
 states_lower = -10.0 * np.ones(n_x)
