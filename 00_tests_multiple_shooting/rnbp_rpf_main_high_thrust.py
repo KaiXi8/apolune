@@ -2,9 +2,9 @@ import sys
 import os
 
 # Construct the full path to the directory containing the package
-project_path = '/Users/hofmannc/git/cotram_py_v02'
+project_path = '/Users/hofmannc/git/apolune'
 
-# Add the 'imatpy' directory to sys.path
+# Add the directory to sys.path
 sys.path.append(project_path)
 
 import numpy as np

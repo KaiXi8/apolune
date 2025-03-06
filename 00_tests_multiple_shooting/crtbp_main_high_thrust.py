@@ -2,9 +2,9 @@ import sys
 import os
 
 # Construct the full path to the directory containing the package
-project_path = '/Users/hofmannc/git/cotram_py_v02'
+project_path = '/Users/hofmannc/git/apolune'
 
-# Add the 'imatpy' directory to sys.path
+# Add the directory to sys.path
 sys.path.append(project_path)
 
 import numpy as np
@@ -73,17 +73,19 @@ solution, info = nlp.solve(sol_guess)
 
 x_sol, u_sol, p_sol = reshapeToNdim(solution, auxdata)
 
-tf_sol = p_sol[-1]
+
 
 # print solution
 x0_sol = x_sol[0]
 print("optimized x0: ", x0_sol)
+print("controls: ", u_sol)
 print("dv's: ", np.linalg.norm(u_sol, axis=1))
 print("total dv: ", np.sum(np.linalg.norm(u_sol, axis=1)))
 print("p_sol: ", p_sol)
 print("time[-1]: ", time[-1])
 
 if auxdata['problem']['free_tf'] == 1:
+    tf_sol = p_sol[-1]
     time = time * tf_sol
 
 # propagate initial state using the optimized controls
@@ -98,6 +100,7 @@ print("max. difference between propagated and optimized final state: ", dxf_max)
 plt.figure()
 ax = plt.axes(projection ='3d')
 ax.plot(x_sol[:,0], x_sol[:,1], x_sol[:,2], label='transfer')
+ax.plot(x_guess[:,0], x_guess[:,1], x_guess[:,2], label='guess')
 ax.set_xlabel("x")
 ax.set_ylabel("y")
 ax.set_zlabel("z")
@@ -105,6 +108,7 @@ plt.legend()
 
 fig, ax = plt.subplots()
 ax.plot(x_sol[:,0], x_sol[:,1], label='transfer')
+ax.plot(x_guess[:,0], x_guess[:,1], label='guess')
 ax.set_xlabel("x")
 ax.set_ylabel("y")
 

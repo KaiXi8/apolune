@@ -70,14 +70,17 @@ def settings():
     n_x = 6
     n_u = 3
     N = 100
+#     N = 10
     Ns = N - 1
     
-    free_tf = 1
+#     free_tf = 1
+    free_tf = 0
     
     # node indices where maneuvers are applied; numpy array within [0, Ns]
     man_index = np.array([0, 30, 60, Ns]) # works with N = 100
     # man_index = np.array([0, 10, 20, 40, 50, 60, 70, 80, 90, Ns]) # works with N = 100
 #     man_index = np.array([0, Ns]) # works with N = 100
+#     man_index = np.array([0, 4, Ns])
     
     # initial and final boundary conditions
     x0 = np.array([8.2338046140454002e-01, 0, 1.3886061447073000e-02, 0, 1.2947638542136800e-01, 0]) # adim
@@ -95,7 +98,8 @@ def settings():
     # n_p: number of free parameters in the optimization
     # here: no free parameters
     n_man = len(man_index)
-    n_p = 1
+#     n_p = 1
+    n_p = 0
     
     tf_ind = 0
     

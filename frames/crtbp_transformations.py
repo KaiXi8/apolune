@@ -1,8 +1,10 @@
 import numpy as np
 import copy
 import spiceypy as spice
-import load_kernels as krn
-import rnbp_rpf_transformations as rnbp
+import init.load_kernels as krn
+import frames.rnbp_rpf_transformations_nonuniform as rnbp
+# import frames.rnbp_rpf_transformations_nonuniform as rnbp_nonuniform
+# import frames.rnbp_rpf_transformations_uniform as rnbp_uniform
 
 
 def get_transformation_matrix_synToIn(t):
@@ -11,12 +13,12 @@ def get_transformation_matrix_synToIn(t):
     R = np.array([
         [cost, -sint, 0.0],
         [sint, cost, 0.0],
-        0.0, 0.0, 1.0]
+        [0.0, 0.0, 1.0]
         ])
     Rdot = np.array([
         [-sint, -cost, 0.0],
         [cost, -sint, 0.0],
-        0.0, 0.0, 0.0]
+        [0.0, 0.0, 0.0]
         ])
 
     return R, Rdot
@@ -28,12 +30,12 @@ def get_transformation_matrix_inToSyn(t):
     R = np.array([
         [cost, sint, 0.0],
         [-sint, cost, 0.0],
-        0.0, 0.0, 1.0]
+        [0.0, 0.0, 1.0]
         ])
     Rdot = np.array([
         [-sint, cost, 0.0],
         [-cost, -sint, 0.0],
-        0.0, 0.0, 0.0]
+        [0.0, 0.0, 0.0]
         ])
 
     return R, Rdot

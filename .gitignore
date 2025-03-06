@@ -1,0 +1,4 @@
+# Ignore SPICE file mar097.bsp
+.DS_Store
+init/kernels/spk/de430.bsp
+utils/libs/
