@@ -39,22 +39,22 @@ def frame_rnbprpf_transform(id_primary, id_secondary, pos_bodies, vel_bodies, nu
             if j == i:
                 continue  # Skip self-interaction
             
-            R_vec = pos_bodies[j] - pos_bodies[i]
-            norm_R = np.sqrt(np.dot(R_vec, R_vec))
+            R_vec = pos_bodies[j] - pos_bodies[i] # [km]
+            norm_R = np.sqrt(np.dot(R_vec, R_vec)) # [km]
             
             # Calculate acceleration and jerk (eq. 3.17)
-            acc = (mu_bodies[j] / norm_R**3) * R_vec
+            acc = (mu_bodies[j] / norm_R**3) * R_vec # [km/s^2]
             
             # Sum up acceleration and jerk for the primary and secondary bodies only
-            A[idx] += acc # [km^3/s^2]
+            A[idx] += acc # [km/s^2]
 
     # Extract primary and secondary positions, velocities, accelerations, and jerks
     Rp = pos_bodies[id_primary] # position of primary [km]
     Rs = pos_bodies[id_secondary] # position of secondary [km]
-    Vp = vel_bodies[id_primary] # velocity of primary [km]
-    Vs = vel_bodies[id_secondary] # velocity of secondary [km]
-    Ap = A[0] # acceleration of primary [km]
-    As = A[1] # acceleration of secondary [km]
+    Vp = vel_bodies[id_primary] # velocity of primary [km/s]
+    Vs = vel_bodies[id_secondary] # velocity of secondary [km/s]
+    Ap = A[0] # acceleration of primary [km/s^2]
+    As = A[1] # acceleration of secondary [km/s^2]
 
     mu_p = mu_bodies[id_primary] # gravitational parameter of primary [km^3/s^2]
     mu_s = mu_bodies[id_secondary] # gravitational parameter of secondary [km^3/s^2]

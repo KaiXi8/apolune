@@ -2,7 +2,7 @@ import numpy as np
 import copy
 import spiceypy as spice
 import load_kernels as krn
-import rnbp_rpf_transformations as rnbp
+import rnbp_rpf_transformations_uniform as rnbp
 
 
 def get_transformation_matrix_synToIn(t):

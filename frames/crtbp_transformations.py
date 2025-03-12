@@ -2,7 +2,10 @@ import numpy as np
 import copy
 import spiceypy as spice
 import init.load_kernels as krn
-import frames.rnbp_rpf_transformations_nonuniform as rnbp
+
+# import frames.rnbp_rpf_transformations_nonuniform as rnbp
+import frames.rnbp_rpf_transformations_uniform as rnbp
+
 # import frames.rnbp_rpf_transformations_nonuniform as rnbp_nonuniform
 # import frames.rnbp_rpf_transformations_uniform as rnbp_uniform
 

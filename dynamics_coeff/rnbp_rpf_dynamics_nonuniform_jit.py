@@ -42,7 +42,7 @@ def get_body_positions(t, naif_id_bodies, observer_id, reference_frame):
     # retrieve states of celestial bodies from SPICE
     for i in prange(num_bodies):
         spkgps(naif_id_bodies[i], t, ffi.from_buffer(reference_frame), observer_id, ffi.from_buffer(pos_bodies[i]), ffi.from_buffer(lt_ob))
-    return pos_bodies
+    return pos_bodies # [km]
 
 @jit('float64[:,::1](float64, int64[::1], int64, int8[::1])', nopython=True, nogil=True, fastmath=True)
 def get_body_states(t, naif_id_bodies, observer_id, reference_frame):
@@ -52,12 +52,12 @@ def get_body_states(t, naif_id_bodies, observer_id, reference_frame):
     # retrieve states of celestial bodies from SPICE
     for i in prange(num_bodies):
         spkgeo(naif_id_bodies[i], t, ffi.from_buffer(reference_frame), observer_id, ffi.from_buffer(state_bodies[i,:]), ffi.from_buffer(lt_ob))
-    return state_bodies
+    return state_bodies # [km, km/s]
 
 @jit('float64(float64, float64[::1], float64[::1], float64)', nopython=True, nogil=True, fastmath=True)
 def compute_epoch_time(tau, tau_vec, t_vec, epoch_t0):
     t = np.interp(tau, tau_vec, t_vec) # [s]
-    return t + epoch_t0
+    return t + epoch_t0 # [s]
     
     
 
@@ -77,17 +77,17 @@ def frame_rnbprpf_coeff(id_primary, id_secondary, pos_bodies, vel_bodies, mu_bod
             if j == i:
                 continue  # Skip self-interaction
             
-            R_vec = pos_bodies[j] - pos_bodies[i]
-            V_vec = vel_bodies[j] - vel_bodies[i]
-            norm_R = np.sqrt(np.dot(R_vec, R_vec))
+            R_vec = pos_bodies[j] - pos_bodies[i] # [km]
+            V_vec = vel_bodies[j] - vel_bodies[i] # [km/s]
+            norm_R = np.sqrt(np.dot(R_vec, R_vec)) # [km]
             
             # Calculate acceleration and jerk (eqs. 3.17 and 3.18)
-            acc = (mu_bodies[j] / norm_R**3) * R_vec
-            jerk = (mu_bodies[j] / norm_R**5) * (norm_R**2 * V_vec - 3 * np.dot(R_vec, V_vec) * R_vec)
+            acc = (mu_bodies[j] / norm_R**3) * R_vec # [km/s^2]
+            jerk = (mu_bodies[j] / norm_R**5) * (norm_R**2 * V_vec - 3 * np.dot(R_vec, V_vec) * R_vec) # [km/s^3]
 
             # Sum up acceleration and jerk for the primary and secondary bodies only
-            A[idx] += acc # [km^3/s^2]
-            J[idx] += jerk # [km^3/s^2]
+            A[idx] += acc # [km/s^2]
+            J[idx] += jerk # [km/s^3]
 
     # Extract primary and secondary positions, velocities, accelerations, and jerks
     Rp = pos_bodies[id_primary] # position of primary [km]
@@ -150,17 +150,17 @@ def frame_rnbprpf(id_primary, id_secondary, pos_bodies, vel_bodies, mu_bodies):
             if j == i:
                 continue  # Skip self-interaction
             
-            R_vec = pos_bodies[j] - pos_bodies[i]
-            V_vec = vel_bodies[j] - vel_bodies[i]
-            norm_R = np.sqrt(np.dot(R_vec, R_vec))
+            R_vec = pos_bodies[j] - pos_bodies[i] # [km]
+            V_vec = vel_bodies[j] - vel_bodies[i] # [km/s]
+            norm_R = np.sqrt(np.dot(R_vec, R_vec)) # [km]
             
             # Calculate acceleration and jerk (eqs. 3.17 and 3.18)
-            acc = (mu_bodies[j] / norm_R**3) * R_vec
-            jerk = (mu_bodies[j] / norm_R**5) * (norm_R**2 * V_vec - 3 * np.dot(R_vec, V_vec) * R_vec)
+            acc = (mu_bodies[j] / norm_R**3) * R_vec # [km/s^2]
+            jerk = (mu_bodies[j] / norm_R**5) * (norm_R**2 * V_vec - 3 * np.dot(R_vec, V_vec) * R_vec) # [km/s^3]
 
             # Sum up acceleration and jerk for the primary and secondary bodies only
-            A[idx] += acc # [km^3/s^2]
-            J[idx] += jerk # [km^3/s^2]
+            A[idx] += acc # [km/s^2]
+            J[idx] += jerk # [km/s^3]
 
     # Extract primary and secondary positions, velocities, accelerations, and jerks
     Rp = pos_bodies[id_primary] # position of primary [km]
@@ -230,13 +230,13 @@ def inertialToSynodic_pos(pos_bodies, b, C, k):
 
 @jit('float64(float64, float64, float64)', nopython=True, nogil=True, fastmath=True)
 def compute_tau_prime(distance, mu_p, mu_s):
-    return np.sqrt((mu_p + mu_s) / (distance**3))
+    return np.sqrt((mu_p + mu_s) / (distance**3)) # [1/s]
 
 
 @jit('float64(float64, float64, float64, float64)', nopython=True, nogil=True, fastmath=True)
 def compute_tau_double_prime(distance, distance_prime, mu_p, mu_s):
     t_prime = compute_tau_prime(distance, mu_p, mu_s)
-    return - 3*t_prime*distance_prime / (2*distance)
+    return - 3*t_prime*distance_prime / (2*distance) # [1/s^2]
     
 
 
@@ -268,14 +268,14 @@ def compute_coeffs(tau, id_primary, id_secondary, mu_bodies_dim, naif_id_bodies,
     acc_p_s, jerk_p_s, h, h1d, b, b2d, k, k1d, k2d, C = \
         frame_rnbprpf_coeff(id_primary, id_secondary, pos_bodies, vel_bodies, mu_bodies_dim)
  
-    distance = k
+    distance = k # [km]
     e3 = C[:,2].copy()
     
-    tau_prime = compute_tau_prime(distance, mu_p, mu_s)
-    tau_prime_squared = tau_prime**2
+    tau_prime = compute_tau_prime(distance, mu_p, mu_s) # [1/s]
+    tau_prime_squared = tau_prime**2 # [1/s^2]
  
-    distance_prime = k1d
-    distance_double_prime = k2d
+    distance_prime = k1d # [km/s]
+    distance_double_prime = k2d # [km/s^2]
          
     b_123 = - C.T @ b2d / (tau_prime_squared * distance)
     
